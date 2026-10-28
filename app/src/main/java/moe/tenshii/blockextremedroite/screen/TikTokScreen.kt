@@ -1,4 +1,4 @@
-package moe.tenshii.blockextremedroite
+package moe.tenshii.blockextremedroite.screen
 
 /** Labels shown by the TikTok app, read from its profile, share sheet and block dialog. */
 object TikTokLabels {

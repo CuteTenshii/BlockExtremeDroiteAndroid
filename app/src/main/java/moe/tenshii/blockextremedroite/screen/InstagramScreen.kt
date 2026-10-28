@@ -1,4 +1,4 @@
-package moe.tenshii.blockextremedroite
+package moe.tenshii.blockextremedroite.screen
 
 /** Labels shown by the Instagram app, read from its profile, ⋯ menu and block sheet. */
 object InstagramLabels {

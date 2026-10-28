@@ -1,4 +1,4 @@
-package moe.tenshii.blockextremedroite
+package moe.tenshii.blockextremedroite.screen
 
 import java.util.Locale
 

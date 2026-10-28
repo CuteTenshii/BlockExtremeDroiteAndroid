@@ -1,6 +1,8 @@
-package moe.tenshii.blockextremedroite
+package moe.tenshii.blockextremedroite.screen
 
 import android.view.accessibility.AccessibilityNodeInfo
+import moe.tenshii.blockextremedroite.Platform
+import moe.tenshii.blockextremedroite.Profile
 import java.util.Locale
 
 /** A visible node of the platform's app, reduced to what the matchers need. */

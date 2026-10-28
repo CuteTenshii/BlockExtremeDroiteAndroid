@@ -15,6 +15,8 @@ import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.net.toUri
+import moe.tenshii.blockextremedroite.screen.BlockScreen
+import moe.tenshii.blockextremedroite.screen.ScreenNode
 import kotlin.random.Random
 
 /**

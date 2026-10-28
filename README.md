@@ -72,7 +72,7 @@ Pour publier une version, augmentez `versionCode` et `versionName` dans `app/bui
 
 ## Si l'appli ne trouve plus les boutons
 
-Les applis des réseaux changent régulièrement leur interface. Si les blocages échouent tous sur un réseau, ses libellés reconnus sont regroupés dans le fichier de ce réseau : `XScreen.kt`, `InstagramScreen.kt`, `FacebookScreen.kt`, `TikTokScreen.kt` ou `YouTubeScreen.kt` (dans `app/src/main/java/moe/tenshii/blockextremedroite/`). Ouvrez une issue en précisant le réseau, la version de son appli et la langue du téléphone.
+Les applis des réseaux changent régulièrement leur interface. Si les blocages échouent tous sur un réseau, ses libellés reconnus sont regroupés dans le fichier de ce réseau : `XScreen.kt`, `InstagramScreen.kt`, `FacebookScreen.kt`, `TikTokScreen.kt` ou `YouTubeScreen.kt` (dans `app/src/main/java/moe/tenshii/blockextremedroite/screen/`). Ouvrez une issue en précisant le réseau, la version de son appli et la langue du téléphone.
 
 ## Licence
 

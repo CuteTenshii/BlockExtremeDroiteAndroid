@@ -1,4 +1,6 @@
-package moe.tenshii.blockextremedroite
+package moe.tenshii.blockextremedroite.screen
+
+import moe.tenshii.blockextremedroite.Platform
 
 /**
  * Labels shown by the YouTube app. YouTube has no block: "hide user from my channel" is its closest action,

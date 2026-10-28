@@ -1,5 +1,8 @@
-package moe.tenshii.blockextremedroite
+package moe.tenshii.blockextremedroite.screen
 
+import moe.tenshii.blockextremedroite.AccountDirectory
+import moe.tenshii.blockextremedroite.DirectorySources
+import moe.tenshii.blockextremedroite.Platform
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
