@@ -46,6 +46,8 @@ class MainActivity : AppCompatActivity() {
     private var checkingUpdate = false
     /** Download progress in percent, null when no download is running. */
     private var updateProgress: Int? = null
+    /** Set when the user is sent to grant the install permission, so the update carries on once they're back. */
+    private var updateAfterPermission = false
     private var wasRunning = false
     private var xInstalled = true
     private val numbers = NumberFormat.getIntegerInstance()
@@ -98,6 +100,10 @@ class MainActivity : AppCompatActivity() {
         xInstalled = BlockService.isXInstalled(this)
         super.onStart()
         RunMonitor.addListener(runListener)
+        if (updateAfterPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.canRequestPackageInstalls()) {
+            updateAfterPermission = false
+            startUpdate()
+        }
     }
 
     override fun onStop() {
@@ -410,6 +416,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.update_permission_title)
             .setMessage(R.string.update_permission_body)
             .setPositiveButton(R.string.disclosure_open_settings) { _, _ ->
+                updateAfterPermission = true
                 startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.fromParts("package", packageName, null)))
             }
             .setNegativeButton(R.string.cancel, null)

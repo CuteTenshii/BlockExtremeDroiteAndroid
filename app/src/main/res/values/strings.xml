@@ -143,7 +143,7 @@
     <string name="update_notes_title">Nouveautés de la version %s</string>
     <string name="update_failed">La mise à jour n’a pas pu être téléchargée. Réessaie plus tard.</string>
     <string name="update_permission_title">Autoriser l’installation</string>
-    <string name="update_permission_body">Android demande ton accord pour que l’appli installe sa propre mise à jour. Active « Autoriser cette source », puis reviens et touche Mettre à jour.</string>
+    <string name="update_permission_body">Android demande ton accord pour que l’appli installe sa propre mise à jour. Autorise-la sur la page qui s’ouvre, puis reviens ici\u00A0: la mise à jour continuera.</string>
     <string name="update_check">Rechercher une mise à jour</string>
     <string name="update_none">Tu as la dernière version.</string>
     <string name="update_check_failed">Impossible de vérifier les mises à jour. Vérifie ta connexion.</string>

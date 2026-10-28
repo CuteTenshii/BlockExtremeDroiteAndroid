@@ -133,7 +133,7 @@
     <string name="update_notes_title">What\'s new in %s</string>
     <string name="update_failed">The update couldn\'t be downloaded. Try again later.</string>
     <string name="update_permission_title">Allow installing</string>
-    <string name="update_permission_body">Android needs your permission for the app to install its own update. Turn on \"Allow from this source\", then come back and tap Update.</string>
+    <string name="update_permission_body">Android needs your permission for the app to install its own update. Allow it on the page that opens, then come back here and the update will carry on.</string>
     <string name="update_check">Check for updates</string>
     <string name="update_none">You have the latest version.</string>
     <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
