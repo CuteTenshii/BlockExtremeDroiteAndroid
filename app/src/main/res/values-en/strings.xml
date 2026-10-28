@@ -119,4 +119,6 @@
     <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
     <string name="version">Version %s</string>
     <string name="close">Close</string>
+    <string name="section_expanded">Expanded</string>
+    <string name="section_collapsed">Collapsed</string>
 </resources>

@@ -54,6 +54,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet(KEY_EXCLUDED, emptySet()).orEmpty().toSet()
         set(value) = prefs.edit { putStringSet(KEY_EXCLUDED, value) }
 
+    var listExpanded: Boolean
+        get() = prefs.getBoolean(KEY_LIST_EXPANDED, true)
+        set(value) = prefs.edit { putBoolean(KEY_LIST_EXPANDED, value) }
+
+    var pacingExpanded: Boolean
+        get() = prefs.getBoolean(KEY_PACING_EXPANDED, true)
+        set(value) = prefs.edit { putBoolean(KEY_PACING_EXPANDED, value) }
+
     companion object {
         private const val DEFAULT_CAP = 30
         val DEFAULT_PACING = Pacing(minDelaySeconds = 6, maxDelaySeconds = 12, sessionCap = DEFAULT_CAP)
@@ -69,5 +77,7 @@ class SettingsStore(context: Context) {
         private const val KEY_DELAY_MAX = "delay_max"
         private const val KEY_CAP = "session_cap"
         private const val KEY_EXCLUDED = "excluded_categories"
+        private const val KEY_LIST_EXPANDED = "list_expanded"
+        private const val KEY_PACING_EXPANDED = "pacing_expanded"
     }
 }

@@ -128,4 +128,6 @@
     <string name="update_check_failed">Impossible de vérifier les mises à jour. Vérifie ta connexion.</string>
     <string name="version">Version %s</string>
     <string name="close">Fermer</string>
+    <string name="section_expanded">Développé</string>
+    <string name="section_collapsed">Réduit</string>
 </resources>

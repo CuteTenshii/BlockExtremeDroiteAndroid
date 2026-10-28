@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.format.DateUtils
+import android.transition.TransitionManager
 import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +26,7 @@ import java.io.File
 import java.text.NumberFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.reflect.KMutableProperty0
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -84,6 +86,8 @@ class MainActivity : AppCompatActivity() {
         binding.updateNotes.setOnClickListener { showUpdateNotes() }
         binding.checkUpdate.setOnClickListener { checkForUpdate(manual = true) }
         binding.version.text = getString(R.string.version, BuildConfig.VERSION_NAME)
+        bindSection(binding.listHeader, binding.listChevron, binding.listBody, settings::listExpanded)
+        bindSection(binding.pacingHeader, binding.pacingChevron, binding.pacingBody, settings::pacingExpanded)
         setUpPacing()
         loadList()
         loadCounts()
@@ -107,6 +111,22 @@ class MainActivity : AppCompatActivity() {
         executor.shutdownNow()
         updateExecutor.shutdownNow()
         super.onDestroy()
+    }
+
+    private fun bindSection(header: View, chevron: View, body: View, expanded: KMutableProperty0<Boolean>) {
+        fun show(animate: Boolean) {
+            val open = expanded.get()
+            if (animate) TransitionManager.beginDelayedTransition(binding.content)
+            body.isVisible = open
+            val rotation = if (open) 180f else 0f
+            if (animate) chevron.animate().rotation(rotation) else chevron.rotation = rotation
+            ViewCompat.setStateDescription(header, getString(if (open) R.string.section_expanded else R.string.section_collapsed))
+        }
+        header.setOnClickListener {
+            expanded.set(!expanded.get())
+            show(animate = true)
+        }
+        show(animate = false)
     }
 
     private fun setUpPacing() {
