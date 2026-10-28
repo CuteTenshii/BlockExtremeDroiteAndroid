@@ -8,4 +8,4 @@
     android:description="@string/accessibility_description"
     android:notificationTimeout="50"
     android:packageNames="com.twitter.android,com.instagram.android,com.facebook.katana,com.zhiliaoapp.musically,com.google.android.youtube"
-    android:settingsActivity="moe.tenshii.blockextremedroite.MainActivity" />
+    android:settingsActivity="moe.tenshii.blockextremedroite.activity.MainActivity" />
