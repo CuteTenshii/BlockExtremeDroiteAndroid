@@ -11,7 +11,12 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.Executors
 
-data class CounterSnapshot(val total: Long, val perAccount: Map<String, Long>)
+/** [counts] is keyed like the site's counter, `platform:siteId`. */
+data class CounterSnapshot(val total: Long, private val counts: Map<String, Long>) {
+    fun count(account: Account, platform: Platform): Long? = counts[counterKey(account.siteId, platform)]
+}
+
+private fun counterKey(siteId: String, platform: Platform) = "${platform.id}:$siteId"
 
 /** Plural rules only need the magnitude, so large counts are clamped into an Int. */
 fun pluralQuantity(count: Long): Int = count.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
@@ -23,6 +28,10 @@ fun pluralQuantity(count: Long): Int = count.coerceIn(0L, Int.MAX_VALUE.toLong()
 class BlockCounter private constructor(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val executor = Executors.newSingleThreadExecutor()
+
+    init {
+        migrateXQueue()
+    }
 
     @Serializable
     private data class CountsResponse(val counts: Map<String, Long>, val total: Long)
@@ -45,15 +54,12 @@ class BlockCounter private constructor(context: Context) {
     @Throws(IOException::class, IllegalArgumentException::class)
     fun fetch(): CounterSnapshot {
         val response = json.decodeFromString<CountsResponse>(Http.get(COUNTS_URL))
-        val perAccount = response.counts.mapNotNull { (key, count) ->
-            key.removePrefix(X_PREFIX).takeIf { it.length < key.length }?.let { it to count }
-        }.toMap()
-        return CounterSnapshot(response.total, perAccount).also { latest = it }
+        return CounterSnapshot(response.total, response.counts).also { latest = it }
     }
 
-    fun report(account: Account) {
+    fun report(account: Account, platform: Platform) {
         synchronized(prefs) {
-            prefs.edit { putStringSet(KEY_QUEUE, pending() + account.siteId) }
+            prefs.edit { putStringSet(KEY_QUEUE, pending() + counterKey(account.siteId, platform)) }
         }
         flush()
     }
@@ -61,19 +67,30 @@ class BlockCounter private constructor(context: Context) {
     /** Sends queued reports in the background; stops at the first failure and keeps the rest for later. */
     fun flush() {
         executor.execute {
-            for (siteId in synchronized(prefs) { pending() }) {
-                val sent = runCatching { send(siteId) }.getOrDefault(false)
+            for (key in synchronized(prefs) { pending() }) {
+                val sent = runCatching { send(key) }.getOrDefault(false)
                 if (!sent) break
-                synchronized(prefs) { prefs.edit { putStringSet(KEY_QUEUE, pending() - siteId) } }
+                synchronized(prefs) { prefs.edit { putStringSet(KEY_QUEUE, pending() - key) } }
             }
         }
     }
 
     private fun pending(): Set<String> = prefs.getStringSet(KEY_QUEUE, emptySet()).orEmpty().toSet()
 
-    private fun send(siteId: String): Boolean {
+    /** Versions that only knew X queued bare site ids. */
+    private fun migrateXQueue() {
+        synchronized(prefs) {
+            val queue = pending()
+            val legacy = queue.filter { ':' !in it }
+            if (legacy.isNotEmpty()) {
+                prefs.edit { putStringSet(KEY_QUEUE, queue - legacy.toSet() + legacy.map { counterKey(it, Platform.X) }) }
+            }
+        }
+    }
+
+    private fun send(key: String): Boolean {
         val body = buildJsonObject {
-            put("account_id", X_PREFIX + siteId)
+            put("account_id", key)
             put("device_id", deviceId)
             put("blocked", true)
         }
@@ -82,7 +99,6 @@ class BlockCounter private constructor(context: Context) {
 
     companion object {
         private const val COUNTS_URL = "${AccountRepository.SITE}/api/counts"
-        private const val X_PREFIX = "x:"
         private const val PREFS = "counter"
         private const val KEY_DEVICE = "device_id"
         private const val KEY_QUEUE = "queue"

@@ -12,7 +12,10 @@ class AccountDirectoryTest {
         directory: String = """{"entries":[]}""",
         portraits: String? = null,
         followers: String? = null,
-    ) = DirectorySources(accounts, directory, portraits, followers)
+        socials: String = "const socials = {};",
+    ) = DirectorySources(accounts, socials, directory, portraits, followers)
+
+    private val List<Account>.xHandles get() = map { it.profiles[Platform.X]?.handle }
 
     @Test
     fun mergesCuratedAndDirectory() {
@@ -40,18 +43,73 @@ class AccountDirectoryTest {
                 """.trimIndent(),
             ),
         )
-        assertEquals(listOf("Alpha", "bravo", "charlie", "delta"), accounts.map { it.handle })
-        assertEquals(listOf("alpha", "pa1", "charlie", "u1"), accounts.map { it.siteId })
+        assertEquals(listOf("Alpha", "bravo", "charlie", "delta", null), accounts.xHandles)
+        assertEquals(listOf("alpha", "pa1", "charlie", "u1", "u2"), accounts.map { it.siteId })
         // Portraits are keyed like the site's records, and only HTTPS photos are kept.
-        assertEquals(listOf("https://example.org/a.jpg", null, null, null), accounts.map { it.portraitUrl })
-        // Follower counts are keyed by network and lowercase handle.
-        assertEquals(listOf(null, 1200L, null, null), accounts.map { it.followers })
+        assertEquals(listOf("https://example.org/a.jpg", null, null, null, null), accounts.map { it.portraitUrl })
+        // Follower counts are keyed by the site's profile identity.
+        assertEquals(listOf(null, 1200L, null, null, null), accounts.map { it.profiles[Platform.X]?.followers })
+        assertEquals("instagram:/echo", accounts.last().profiles.getValue(Platform.INSTAGRAM).identity)
         // A community link update keeps a curated account curated.
         assertEquals(
-            listOf(AccountSource.CURATED, AccountSource.CURATED, AccountSource.CURATED, AccountSource.COMMUNITY),
+            listOf(AccountSource.CURATED, AccountSource.CURATED, AccountSource.CURATED, AccountSource.COMMUNITY, AccountSource.COMMUNITY),
             accounts.map { it.source },
         )
-        assertEquals("Autres", accounts.last().category)
+        assertEquals("Autres", accounts[3].category)
+    }
+
+    @Test
+    fun curatedAccountsTakeTheirOtherProfilesFromSocials() {
+        val accounts = AccountDirectory.build(
+            sources(
+                accounts = """const accounts = [{"name": "A", "handle": "alpha"}, {"id": "b1", "name": "B", "handle": ""}];""",
+                socials = """
+                    const socials = {
+                      "alpha": {
+                        "sources": {"facebook": "https://example.org/source"},
+                        "facebook": "https://fr-fr.facebook.com/AlphaPage/",
+                        "youtube": "https://www.youtube.com/watch?v=abc"
+                      },
+                      "b1": {"tiktok": "https://www.tiktok.com/@bravo.b"}
+                    };
+                """.trimIndent(),
+            ),
+        )
+        assertEquals(listOf(Platform.X, Platform.FACEBOOK), accounts[0].profiles.keys.toList())
+        assertEquals("https://www.facebook.com/alphapage", accounts[0].profiles.getValue(Platform.FACEBOOK).url)
+        assertEquals("@bravo.b", accounts[1].label(Platform.TIKTOK))
+        assertEquals("B", accounts[1].label(Platform.X))
+    }
+
+    @Test
+    fun recordsSharingAnyProfileAreOnePerson() {
+        val accounts = AccountDirectory.build(
+            sources(
+                accounts = """const accounts = [{"name": "A", "handle": "alpha"}, {"name": "B", "handle": "bravo"}];""",
+                socials = """const socials = {"alpha": {"instagram": "https://www.instagram.com/shared/"}};""",
+                directory = """
+                    {"entries": [
+                      {"id": "u1", "type": "new", "name": "A on TikTok", "platform": "tiktok", "profile_url": "https://www.tiktok.com/@alpha"},
+                      {"type": "update", "target_id": "u1", "platform": "instagram", "profile_url": "https://instagram.com/Shared"}
+                    ]}
+                """.trimIndent(),
+            ),
+        )
+        assertEquals(listOf("alpha", "bravo"), accounts.map { it.siteId })
+        // The first record keeps its details; the later one adds the platform it was missing.
+        assertEquals(listOf(Platform.X, Platform.INSTAGRAM, Platform.TIKTOK), accounts[0].profiles.keys.toList())
+        assertEquals("A", accounts[0].name)
+    }
+
+    @Test
+    fun accountsWithoutAnyUsableProfileAreLeftOut() {
+        val accounts = AccountDirectory.build(
+            sources(
+                accounts = """const accounts = [{"name": "A", "handle": "alpha"}, {"id": "b1", "name": "B"}];""",
+                socials = """const socials = {"b1": {"youtube": "https://t.me/s/somewhere"}};""",
+            ),
+        )
+        assertEquals(listOf("alpha"), accounts.map { it.siteId })
     }
 
     @Test
@@ -67,7 +125,24 @@ class AccountDirectoryTest {
                 """.trimIndent(),
             ),
         )
-        assertEquals(listOf("bravo"), accounts.map { it.handle })
+        assertEquals(listOf("bravo"), accounts.xHandles)
+    }
+
+    @Test
+    fun removalDropsRecordsLinkedOnAnotherPlatform() {
+        val accounts = AccountDirectory.build(
+            sources(
+                accounts = """const accounts = [{"name": "A", "handle": "alpha"}, {"name": "B", "handle": "bravo"}];""",
+                socials = """const socials = {"alpha": {"youtube": "https://www.youtube.com/@AlphaTube"}};""",
+                directory = """
+                    {"entries": [
+                      {"id": "u1", "type": "new", "name": "A tube", "platform": "youtube", "profile_url": "https://m.youtube.com/@alphatube/"},
+                      {"type": "removal", "target_id": "u1"}
+                    ]}
+                """.trimIndent(),
+            ),
+        )
+        assertEquals(listOf("bravo"), accounts.map { it.siteId })
     }
 
     @Test
@@ -80,16 +155,5 @@ class AccountDirectoryTest {
                 ),
             )
         }
-    }
-
-    @Test
-    fun extractsHandlesOnlyFromProfileLinks() {
-        assertEquals("J_Bardella", AccountDirectory.handleFromLink("https://x.com/J_Bardella"))
-        assertEquals("abc", AccountDirectory.handleFromLink("https://mobile.twitter.com/@abc/"))
-        assertNull(AccountDirectory.handleFromLink("http://x.com/abc"))
-        assertNull(AccountDirectory.handleFromLink("https://x.com/abc/status/1"))
-        assertNull(AccountDirectory.handleFromLink("https://x.com/home"))
-        assertNull(AccountDirectory.handleFromLink("https://evilx.com/abc"))
-        assertNull(AccountDirectory.handleFromLink("https://x.com/this_is_way_too_long"))
     }
 }

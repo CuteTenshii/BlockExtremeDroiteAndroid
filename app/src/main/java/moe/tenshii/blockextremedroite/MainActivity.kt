@@ -49,11 +49,14 @@ class MainActivity : AppCompatActivity() {
     /** Set when the user is sent to grant the install permission, so the update carries on once they're back. */
     private var updateAfterPermission = false
     private var wasRunning = false
-    private var xInstalled = true
+    private var appInstalled = true
     private val numbers = NumberFormat.getIntegerInstance()
     private val runListener: (RunState) -> Unit = { state ->
-        // Reports are sent in the background, so give them a moment before reading the counter back.
-        if (wasRunning && !state.running) binding.root.postDelayed(::loadCounts, COUNTS_RELOAD_DELAY_MS)
+        if (wasRunning && !state.running) {
+            // Reports are sent in the background, so give them a moment before reading the counter back.
+            binding.root.postDelayed(::loadCounts, COUNTS_RELOAD_DELAY_MS)
+            buildFilterChips()
+        }
         wasRunning = state.running
         render()
     }
@@ -77,7 +80,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.viewAccounts.setOnClickListener { startActivity(Intent(this, AccountsActivity::class.java)) }
         binding.enableService.setOnClickListener { showDisclosure() }
-        binding.installX.setOnClickListener { openXStorePage() }
+        binding.installApp.setOnClickListener { openStorePage(settings.platform) }
         binding.openRepository.setOnClickListener { openRepository() }
         binding.refreshList.setOnClickListener { refreshList() }
         binding.startStop.setOnClickListener { toggleRun() }
@@ -97,7 +100,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStart() {
-        xInstalled = BlockService.isXInstalled(this)
+        appInstalled = BlockService.isInstalled(this, settings.platform)
         super.onStart()
         RunMonitor.addListener(runListener)
         if (updateAfterPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.canRequestPackageInstalls()) {
@@ -214,10 +217,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Category counts follow the selected sources, so the source chips are built first. */
+    /**
+     * Each platform counts what is left to block there in the current selection. Source and category counts
+     * follow the selected platform, and category counts the selected sources, so the chips are built in that order.
+     */
     private fun buildFilterChips() {
+        val platform = settings.platform
+        binding.platforms.removeAllViews()
+        for (option in Platform.entries) {
+            val pending = settings.select(accounts, option).count { !progress.status(it.profiles.getValue(option)).isDone }
+            val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.platforms, false).root.apply {
+                id = View.generateViewId()
+                text = getString(R.string.category_chip, option.label, pending)
+                isChecked = option == platform
+                setOnCheckedChangeListener { _, checked ->
+                    if (!checked || settings.platform == option) return@setOnCheckedChangeListener
+                    settings.platform = option
+                    appInstalled = BlockService.isInstalled(this@MainActivity, option)
+                    RunMonitor.update { it.copy(lastStop = null) }
+                    buildFilterChips()
+                    render()
+                }
+            }
+            binding.platforms.addView(chip)
+        }
+
+        val onPlatform = accounts.filter { platform in it.profiles }
         val excludedSources = settings.excludedSources
-        val sourceCounts = accounts.groupingBy { it.source }.eachCount()
+        val sourceCounts = onPlatform.groupingBy { it.source }.eachCount()
         binding.sources.removeAllViews()
         for (source in AccountSource.entries) {
             val count = sourceCounts[source] ?: continue
@@ -236,7 +263,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val excluded = settings.excludedCategories
-        val counts = accounts.filter { it.source !in excludedSources }
+        val counts = onPlatform.filter { it.source !in excludedSources }
             .groupingBy { it.category }.eachCount().entries.sortedByDescending { it.value }
         binding.categories.removeAllViews()
         for ((category, count) in counts) {
@@ -246,6 +273,7 @@ class MainActivity : AppCompatActivity() {
                 setOnCheckedChangeListener { _, checked ->
                     settings.excludedCategories =
                         if (checked) settings.excludedCategories - category else settings.excludedCategories + category
+                    buildFilterChips()
                     render()
                 }
             }
@@ -268,7 +296,12 @@ class MainActivity : AppCompatActivity() {
 
         renderUpdate()
 
-        binding.xMissing.isVisible = !xInstalled
+        val platform = settings.platform
+        binding.appMissing.isVisible = !appInstalled
+        binding.appMissingTitle.text = getString(R.string.app_missing_title, platform.label)
+        binding.appMissingBody.text = getString(R.string.app_missing_body, platform.label)
+        binding.installApp.text = getString(R.string.app_install, platform.label)
+        binding.platformNote.isVisible = platform == Platform.YOUTUBE
 
         binding.serviceStatus.setText(if (state.serviceConnected) R.string.service_on else R.string.service_off)
         binding.enableService.isVisible = !state.serviceConnected
@@ -283,14 +316,14 @@ class MainActivity : AppCompatActivity() {
         }
         binding.refreshList.isEnabled = !refreshing && !state.running
         binding.refreshList.setText(if (refreshing) R.string.list_refreshing else R.string.list_refresh)
-        for (group in listOf(binding.sources, binding.categories)) {
+        for (group in listOf(binding.platforms, binding.sources, binding.categories)) {
             for (i in 0 until group.childCount) group.getChildAt(i).isEnabled = !state.running
         }
         binding.delaySlider.isEnabled = !state.running
         binding.capSlider.isEnabled = !state.running
         binding.resetProgress.isEnabled = !state.running
 
-        val statuses = selectedAccounts().map(progress::status)
+        val statuses = selectedAccounts().map { progress.status(it.profiles.getValue(platform)) }
         binding.viewAccounts.isEnabled = accounts.isNotEmpty()
         val pending = statuses.count { !it.isDone }
         val blocked = statuses.count { it == BlockStatus.BLOCKED || it == BlockStatus.ALREADY_BLOCKED }
@@ -298,7 +331,7 @@ class MainActivity : AppCompatActivity() {
         binding.summary.text = getString(R.string.summary, pending, blocked, unavailable)
 
         binding.startStop.setText(if (state.running) R.string.stop else R.string.start)
-        binding.startStop.isEnabled = state.running || (xInstalled && state.serviceConnected && pending > 0)
+        binding.startStop.isEnabled = state.running || (appInstalled && state.serviceConnected && pending > 0)
 
         val runText = runStatusText(state, statuses.isEmpty(), pending)
         binding.runStatus.text = runText
@@ -324,17 +357,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runStatusText(state: RunState, noSelection: Boolean, pending: Int): String? = when {
-        state.running && state.currentHandle == null -> getString(R.string.run_starting)
+        state.running && state.current == null -> getString(R.string.run_starting, state.platform.label)
         state.running && state.cap == null ->
-            resources.getQuantityString(R.plurals.run_running_unlimited, state.blocked, state.currentHandle, state.blocked)
-        state.running -> resources.getQuantityString(R.plurals.run_running, state.blocked, state.currentHandle, state.blocked, state.cap)
+            resources.getQuantityString(R.plurals.run_running_unlimited, state.blocked, state.current, state.blocked)
+        state.running -> resources.getQuantityString(R.plurals.run_running, state.blocked, state.current, state.blocked, state.cap)
         state.lastStop != null -> when (state.lastStop) {
             StopReason.FINISHED -> getString(R.string.stop_finished)
             StopReason.CAP_REACHED -> resources.getQuantityString(R.plurals.stop_cap, state.lastBlocked, state.lastBlocked)
             StopReason.USER -> resources.getQuantityString(R.plurals.stop_user, state.lastBlocked, state.lastBlocked)
-            StopReason.X_NOT_INSTALLED -> getString(R.string.stop_x_missing)
-            StopReason.LOGGED_OUT -> getString(R.string.stop_logged_out)
-            StopReason.TOO_MANY_FAILURES -> getString(R.string.stop_failures)
+            StopReason.APP_NOT_INSTALLED -> getString(R.string.stop_app_missing, state.platform.label)
+            StopReason.LOGGED_OUT -> getString(R.string.stop_logged_out, state.platform.label)
+            StopReason.TOO_MANY_FAILURES -> getString(R.string.stop_failures, state.platform.label)
             StopReason.SERVICE_DISCONNECTED -> getString(R.string.stop_service)
         }
         accounts.isEmpty() -> null
@@ -354,12 +387,13 @@ class MainActivity : AppCompatActivity() {
             showDisclosure()
             return
         }
-        val queue = selectedAccounts().filter { !progress.status(it).isDone }
+        val platform = settings.platform
+        val queue = selectedAccounts().filter { !progress.status(it.profiles.getValue(platform)).isDone }
         if (queue.isEmpty()) {
             snackbar(getString(R.string.nothing_to_block))
             return
         }
-        service.start(queue, settings.pacing)
+        service.start(platform, queue, settings.pacing)
     }
 
     private fun checkForUpdate(manual: Boolean) {
@@ -468,12 +502,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmReset() {
+        val platform = settings.platform
         MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.reset_title)
-            .setMessage(R.string.reset_body)
+            .setTitle(getString(R.string.reset_title, platform.label))
+            .setMessage(getString(R.string.reset_body, platform.label))
             .setPositiveButton(R.string.reset_confirm) { _, _ ->
-                progress.clear()
+                progress.clear(platform)
                 RunMonitor.update { it.copy(lastStop = null) }
+                buildFilterChips()
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -487,11 +523,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun openXStorePage() {
+    private fun openStorePage(platform: Platform) {
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=${BlockService.X_PACKAGE}".toUri()))
+            startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=${platform.packageName}".toUri()))
         } catch (_: ActivityNotFoundException) {
-            startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${BlockService.X_PACKAGE}".toUri()))
+            startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${platform.packageName}".toUri()))
         }
     }
 

@@ -26,11 +26,11 @@
         tools:text="À bloquer : 12 · Bloqués : 30 · Introuvables : 2" />
 
     <TextView
+        android:id="@+id/hint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:paddingHorizontal="@dimen/gutter"
-        android:text="@string/accounts_hint"
         android:textAppearance="?attr/textAppearanceBodySmall"
         android:textColor="?attr/colorOnSurfaceVariant" />
 

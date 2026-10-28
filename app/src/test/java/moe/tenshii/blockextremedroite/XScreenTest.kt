@@ -13,13 +13,13 @@ class XScreenTest {
     private fun node(text: String? = null, description: String? = null, top: Int = 100, right: Int = 100) =
         ScreenNode(text, description, right - 50, top, right, top + 40)
 
-    private fun screen(vararg nodes: ScreenNode) = XScreen(nodes.toList(), height)
+    private fun screen(vararg nodes: ScreenNode, handle: String = "alpha") = XScreen(nodes.toList(), height, handle)
 
     @Test
     fun matchesHandleAsWholeMention() {
-        assertTrue(screen(node("@J_Bardella")).showsHandle("j_bardella"))
-        assertTrue(screen(node(description = "Profil de @j_bardella, 3 k abonnés")).showsHandle("J_Bardella"))
-        assertFalse(screen(node("@J_Bardella2")).showsHandle("J_Bardella"))
+        assertTrue(screen(node("@J_Bardella"), handle = "j_bardella").showsProfile())
+        assertTrue(screen(node(description = "Profil de @j_bardella, 3 k abonnés"), handle = "J_Bardella").showsProfile())
+        assertFalse(screen(node("@J_Bardella2"), handle = "J_Bardella").showsProfile())
     }
 
     @Test
@@ -34,10 +34,10 @@ class XScreenTest {
     @Test
     fun blockMenuItemTargetsTheRightHandle() {
         val item = node("Bloquer @alpha")
-        assertEquals(item, screen(node("Bloquer @other"), item).blockMenuItem("Alpha"))
-        assertNull(screen(node("Bloquer @other")).blockMenuItem("alpha"))
-        assertNull(screen(node("Débloquer @alpha")).blockMenuItem("alpha"))
-        assertNotNull(screen(node("Block")).blockMenuItem("alpha"))
+        assertEquals(item, screen(node("Bloquer @other"), item, handle = "Alpha").blockMenuItem())
+        assertNull(screen(node("Bloquer @other")).blockMenuItem())
+        assertNull(screen(node("Débloquer @alpha")).blockMenuItem())
+        assertNotNull(screen(node("Block")).blockMenuItem())
     }
 
     @Test
@@ -50,13 +50,13 @@ class XScreenTest {
 
     @Test
     fun detectsBlockedProfileInBothLanguages() {
-        assertTrue(screen(node("Débloquer")).isBlockedProfile("alpha"))
-        assertTrue(screen(node("Unblock")).isBlockedProfile("alpha"))
-        assertTrue(screen(node("Vous avez bloqué @alpha")).isBlockedProfile("alpha"))
-        assertTrue(screen(node("@alpha a été bloqué")).isBlockedProfile("alpha"))
-        assertFalse(screen(node("Unblocked @alpha")).isBlockedProfile("alpha"))
-        assertFalse(screen(node("Suivre"), node("@alpha")).isBlockedProfile("alpha"))
-        assertTrue(screen(node("Unblock @alpha")).hasUnblockMenuItem("Alpha"))
+        assertTrue(screen(node("Débloquer")).isBlockedProfile())
+        assertTrue(screen(node("Unblock")).isBlockedProfile())
+        assertTrue(screen(node("Vous avez bloqué @alpha")).isBlockedProfile())
+        assertTrue(screen(node("@alpha a été bloqué")).isBlockedProfile())
+        assertFalse(screen(node("Unblocked @alpha")).isBlockedProfile())
+        assertFalse(screen(node("Suivre"), node("@alpha")).isBlockedProfile())
+        assertTrue(screen(node("Unblock @alpha"), handle = "Alpha").hasUnblockMenuItem())
     }
 
     @Test

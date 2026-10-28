@@ -53,7 +53,7 @@ class PortraitLoader private constructor(context: Context) {
         private const val DIRECTORY = "portraits"
         private const val THREADS = 3
         private const val MEMORY_BYTES = 8 * 1024 * 1024
-        /** The `/avatar` proxy's own cache lifetime; X profile pictures change. */
+        /** The `/avatar` proxy's own cache lifetime; profile pictures change. */
         private const val MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L
         private const val MAX_DISK_BYTES = 30L * 1024 * 1024
 

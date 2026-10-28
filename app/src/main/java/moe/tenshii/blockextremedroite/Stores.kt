@@ -14,20 +14,38 @@ enum class BlockStatus {
     val isDone: Boolean get() = this == BLOCKED || this == ALREADY_BLOCKED || this == UNAVAILABLE
 }
 
+/** Keyed on [Profile.identity], so a profile listed under two records is only processed once. */
 class ProgressStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("progress", Context.MODE_PRIVATE)
 
-    fun status(account: Account): BlockStatus =
-        prefs.getString(account.key, null)
+    init {
+        migrateXHandles()
+    }
+
+    fun status(profile: Profile): BlockStatus =
+        prefs.getString(profile.identity, null)
             ?.let { name -> BlockStatus.entries.firstOrNull { it.name == name } }
             ?: BlockStatus.PENDING
 
-    fun set(account: Account, status: BlockStatus) {
-        prefs.edit { putString(account.key, status.name) }
+    fun set(profile: Profile, status: BlockStatus) {
+        prefs.edit { putString(profile.identity, status.name) }
     }
 
-    fun clear() {
-        prefs.edit { clear() }
+    fun clear(platform: Platform) {
+        val prefix = platform.id + ":"
+        prefs.edit { prefs.all.keys.filter { it.startsWith(prefix) }.forEach(::remove) }
+    }
+
+    /** Versions that only knew X keyed progress on the bare lowercase handle. */
+    private fun migrateXHandles() {
+        val legacy = prefs.all.filter { (key, value) -> ':' !in key && value is String }
+        if (legacy.isEmpty()) return
+        prefs.edit {
+            for ((handle, status) in legacy) {
+                remove(handle)
+                putString("${Platform.X.id}:/$handle", status as String)
+            }
+        }
     }
 }
 
@@ -54,11 +72,15 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet(KEY_EXCLUDED, emptySet()).orEmpty().toSet()
         set(value) = prefs.edit { putStringSet(KEY_EXCLUDED, value) }
 
-    /** The accounts left once the excluded sources and categories are filtered out. */
-    fun select(accounts: List<Account>): List<Account> {
+    var platform: Platform
+        get() = prefs.getString(KEY_PLATFORM, null)?.let(Platform::fromId) ?: Platform.X
+        set(value) = prefs.edit { putString(KEY_PLATFORM, value.id) }
+
+    /** The accounts listed on [platform], less the excluded sources and categories. */
+    fun select(accounts: List<Account>, platform: Platform = this.platform): List<Account> {
         val sources = excludedSources
         val categories = excludedCategories
-        return accounts.filter { it.source !in sources && it.category !in categories }
+        return accounts.filter { platform in it.profiles && it.source !in sources && it.category !in categories }
     }
 
     var excludedSources: Set<AccountSource>
@@ -92,5 +114,6 @@ class SettingsStore(context: Context) {
         private const val KEY_EXCLUDED_SOURCES = "excluded_sources"
         private const val KEY_LIST_EXPANDED = "list_expanded"
         private const val KEY_PACING_EXPANDED = "pacing_expanded"
+        private const val KEY_PLATFORM = "platform"
     }
 }

@@ -8,7 +8,7 @@ import android.view.LayoutInflater
 import android.view.WindowManager
 import moe.tenshii.blockextremedroite.databinding.OverlayRunBinding
 
-/** Floating pill over X showing progress, with a stop button that works without leaving X. */
+/** Floating pill over the platform's app showing progress, with a stop button that works without leaving it. */
 class RunOverlay(private val service: AccessibilityService, onStop: () -> Unit) {
     private val windowManager = service.getSystemService(WindowManager::class.java)
     private val binding = OverlayRunBinding.inflate(
@@ -20,9 +20,9 @@ class RunOverlay(private val service: AccessibilityService, onStop: () -> Unit) 
         binding.overlayStop.setOnClickListener { onStop() }
     }
 
-    fun show() {
+    fun show(platform: Platform) {
         if (attached) return
-        binding.overlayStatus.text = service.getString(R.string.overlay_starting)
+        binding.overlayStatus.text = service.getString(R.string.overlay_starting, platform.label)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -30,7 +30,7 @@ class RunOverlay(private val service: AccessibilityService, onStop: () -> Unit) 
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            // Top centre stays clear of X's back, search and ⋯ buttons and of its bottom-sheet menus.
+            // Top centre stays clear of the apps' back, search and menu buttons and of their bottom-sheet menus.
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             y = service.resources.getDimensionPixelOffset(R.dimen.overlay_top_offset)
         }
@@ -38,11 +38,11 @@ class RunOverlay(private val service: AccessibilityService, onStop: () -> Unit) 
         attached = true
     }
 
-    fun showProgress(handle: String, blocked: Int, cap: Int?) {
+    fun showProgress(label: String, blocked: Int, cap: Int?) {
         binding.overlayStatus.text = if (cap == null) {
-            service.getString(R.string.overlay_blocking_unlimited, handle, blocked)
+            service.getString(R.string.overlay_blocking_unlimited, label, blocked)
         } else {
-            service.getString(R.string.overlay_blocking, handle, blocked, cap)
+            service.getString(R.string.overlay_blocking, label, blocked, cap)
         }
     }
 

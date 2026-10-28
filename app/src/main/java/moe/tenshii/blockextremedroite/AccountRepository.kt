@@ -33,6 +33,7 @@ class AccountRepository(context: Context) {
         val accounts = AccountDirectory.build(
             DirectorySources(
                 accountsScript = Http.get("$SITE/accounts.js"),
+                socialsScript = Http.get("$SITE/socials.js"),
                 directoryJson = Http.get("$SITE/api/accounts"),
                 portraitsScript = runCatching { Http.get("$SITE/portraits.js") }.getOrNull(),
                 followersScript = runCatching { Http.get("$SITE/followers.js") }.getOrNull(),

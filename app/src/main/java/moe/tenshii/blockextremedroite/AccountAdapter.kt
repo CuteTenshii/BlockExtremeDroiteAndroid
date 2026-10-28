@@ -13,10 +13,14 @@ import moe.tenshii.blockextremedroite.databinding.ItemAccountBinding
 import java.text.NumberFormat
 import java.util.Locale
 
-/** [blockCount] is the site's collective count for this account, null until the counter loads. */
-data class AccountRow(val account: Account, val status: BlockStatus, val blockCount: Long?)
+/** [profile] is the account's on the shown platform; [blockCount] is the site's count there, null until the counter loads. */
+data class AccountRow(val account: Account, val profile: Profile, val status: BlockStatus, val blockCount: Long?)
 
-class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: (Account) -> Unit) :
+class AccountAdapter(
+    private val portraits: PortraitLoader,
+    private val platform: Platform,
+    private val onOpen: (Profile) -> Unit,
+) :
     ListAdapter<AccountRow, AccountAdapter.Holder>(Diff) {
 
     private val numbers = NumberFormat.getIntegerInstance()
@@ -28,17 +32,17 @@ class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: 
         Holder(ItemAccountBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
-        val (account, status, blockCount) = getItem(position)
+        val (account, profile, status, blockCount) = getItem(position)
         val context = holder.itemView.context
         with(holder.binding) {
             accountName.text = account.name
             accountInitials.text = account.name.split(Regex("\\s+")).filter { it.isNotEmpty() }.take(2)
                 .joinToString("") { it.take(1) }.uppercase(Locale.getDefault())
-            portraits.load(accountPortrait, account.avatarUrl, context.resources.getDimensionPixelSize(R.dimen.avatar_size))
+            portraits.load(accountPortrait, account.avatarUrl(platform), context.resources.getDimensionPixelSize(R.dimen.avatar_size))
             accountMeta.text = listOfNotNull(
-                "@" + account.handle,
+                profile.handle?.let { "@$it" },
                 account.category,
-                account.followers?.let {
+                profile.followers?.let {
                     context.resources.getQuantityString(R.plurals.account_followers, pluralQuantity(it), compactNumbers.format(it))
                 },
                 blockCount?.let {
@@ -53,7 +57,7 @@ class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: 
                     MaterialColors.getColor(root, status.colorAttr)
                 },
             )
-            root.setOnClickListener { onOpen(account) }
+            root.setOnClickListener { onOpen(profile) }
         }
     }
 
@@ -74,7 +78,7 @@ class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: 
         }
 
     private object Diff : DiffUtil.ItemCallback<AccountRow>() {
-        override fun areItemsTheSame(oldItem: AccountRow, newItem: AccountRow) = oldItem.account.key == newItem.account.key
+        override fun areItemsTheSame(oldItem: AccountRow, newItem: AccountRow) = oldItem.account.siteId == newItem.account.siteId
         override fun areContentsTheSame(oldItem: AccountRow, newItem: AccountRow) = oldItem == newItem
     }
 }

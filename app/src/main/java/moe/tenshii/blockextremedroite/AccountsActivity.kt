@@ -22,8 +22,9 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
- * The selected accounts and their status, on a screen of their own so thousands of rows can scroll and recycle.
- * Its filters only narrow what is shown here; a blocking run still covers the whole selection.
+ * The selected accounts and their status on the platform picked on the main screen, on a screen of their own so
+ * thousands of rows can scroll and recycle. Its filters only narrow what is shown here; a blocking run still covers
+ * the whole selection.
  */
 class AccountsActivity : AppCompatActivity() {
     private enum class Sort(@param:StringRes val label: Int) {
@@ -36,6 +37,7 @@ class AccountsActivity : AppCompatActivity() {
     private lateinit var progress: ProgressStore
     private lateinit var settings: SettingsStore
     private lateinit var counter: BlockCounter
+    private lateinit var platform: Platform
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private lateinit var adapter: AccountAdapter
     private val compactNumbers = CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT)
@@ -65,7 +67,8 @@ class AccountsActivity : AppCompatActivity() {
         progress = ProgressStore(this)
         settings = SettingsStore(this)
         counter = BlockCounter.get(this)
-        adapter = AccountAdapter(PortraitLoader.get(this), ::openProfile)
+        platform = settings.platform
+        adapter = AccountAdapter(PortraitLoader.get(this), platform, ::openProfile)
         savedInstanceState?.let { state ->
             category = state.getString(KEY_CATEGORY)
             minFollowers = state.getLong(KEY_MIN_FOLLOWERS)
@@ -73,6 +76,8 @@ class AccountsActivity : AppCompatActivity() {
             sort = Sort.entries.getOrElse(state.getInt(KEY_SORT)) { Sort.SITE }
         }
 
+        binding.toolbar.subtitle = platform.label
+        binding.hint.text = getString(R.string.accounts_hint, platform.label)
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.filterCategory.setOnMenu {
             listOf(getString(R.string.filter_category_all) to { category = null }) +
@@ -152,7 +157,7 @@ class AccountsActivity : AppCompatActivity() {
     }
 
     private fun categories(): List<String> =
-        settings.select(accounts.orEmpty()).groupingBy { it.category }.eachCount().entries
+        settings.select(accounts.orEmpty(), platform).groupingBy { it.category }.eachCount().entries
             .sortedByDescending { it.value }.map { it.key }
 
     private fun renderFilters() {
@@ -177,17 +182,20 @@ class AccountsActivity : AppCompatActivity() {
             binding.empty.setText(if (loadFailed) R.string.list_load_failed else R.string.list_loading)
             return
         }
-        val perAccount = counter.latest?.perAccount
-        val selected = settings.select(all).map { AccountRow(it, progress.status(it), perAccount?.get(it.siteId)) }
+        val snapshot = counter.latest
+        val selected = settings.select(all, platform).map { account ->
+            val profile = account.profiles.getValue(platform)
+            AccountRow(account, profile, progress.status(profile), snapshot?.count(account, platform))
+        }
         val shown = selected.filter { row ->
             (category == null || row.account.category == category) &&
-                (row.account.followers ?: 0) >= minFollowers &&
+                (row.profile.followers ?: 0) >= minFollowers &&
                 (row.blockCount ?: 0) >= minBlocks
         }
         val rows = when (sort) {
             Sort.SITE -> shown
             Sort.BLOCKS -> shown.sortedByDescending { it.blockCount ?: -1 }
-            Sort.FOLLOWERS -> shown.sortedByDescending { it.account.followers ?: -1 }
+            Sort.FOLLOWERS -> shown.sortedByDescending { it.profile.followers ?: -1 }
         }
         adapter.submitList(rows) { if (scrollToTop) binding.accounts.scrollToPosition(0) }
 
@@ -202,12 +210,11 @@ class AccountsActivity : AppCompatActivity() {
         )
     }
 
-    private fun openProfile(account: Account) {
-        val uri = "https://x.com/${account.handle}".toUri()
+    private fun openProfile(profile: Profile) {
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(BlockService.X_PACKAGE))
+            startActivity(Intent(Intent.ACTION_VIEW, platform.appLink(profile).toUri()).setPackage(platform.packageName))
         } catch (_: ActivityNotFoundException) {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
+            startActivity(Intent(Intent.ACTION_VIEW, profile.url.toUri()))
         }
     }
 

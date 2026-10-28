@@ -6,7 +6,7 @@ enum class StopReason {
     FINISHED,
     CAP_REACHED,
     USER,
-    X_NOT_INSTALLED,
+    APP_NOT_INSTALLED,
     LOGGED_OUT,
     TOO_MANY_FAILURES,
     SERVICE_DISCONNECTED,
@@ -15,7 +15,10 @@ enum class StopReason {
 data class RunState(
     val serviceConnected: Boolean = false,
     val running: Boolean = false,
-    val currentHandle: String? = null,
+    /** The platform of the running or last session. */
+    val platform: Platform = Platform.X,
+    /** How the account being blocked is named on [platform]; see [Account.label]. */
+    val current: String? = null,
     val blocked: Int = 0,
     /** Null when the session has no limit. */
     val cap: Int? = null,

@@ -18,15 +18,15 @@ import androidx.core.net.toUri
 import kotlin.random.Random
 
 /**
- * Drives the X app: opens each profile through a deep link, then taps ⋯, Bloquer and the confirmation.
- * X's accessibility events trigger each check (debounced, as Compose sends them in bursts); a short poll
- * covers screens that change without emitting any.
+ * Drives a platform's official app: opens each profile through a deep link, then taps its menu, Bloquer and the
+ * confirmation. The app's accessibility events trigger each check (debounced, as Compose sends them in bursts);
+ * a short poll covers screens that change without emitting any.
  */
 class BlockService : AccessibilityService() {
 
     private enum class Step { OPEN, PROFILE, MENU, CONFIRM, VERIFY, PAUSE }
 
-    private class Session(val queue: ArrayDeque<Account>, val pacing: Pacing) {
+    private class Session(val platform: Platform, val queue: ArrayDeque<Account>, val pacing: Pacing) {
         var step = Step.OPEN
         var stepStartedAt = 0L
         var deadline = 0L
@@ -64,7 +64,8 @@ class BlockService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (session == null || event?.packageName != X_PACKAGE) return
+        val platform = session?.platform ?: return
+        if (event?.packageName != platform.packageName) return
         handler.removeCallbacks(eventCheck)
         handler.postDelayed(eventCheck, EVENT_DEBOUNCE_MS)
     }
@@ -81,12 +82,17 @@ class BlockService : AccessibilityService() {
         super.onDestroy()
     }
 
-    fun start(accounts: List<Account>, pacing: Pacing) {
-        if (session != null || accounts.isEmpty()) return
-        session = Session(ArrayDeque(accounts), pacing)
-        overlay?.show()
+    /** Accounts without a profile on [platform] are skipped. */
+    fun start(platform: Platform, accounts: List<Account>, pacing: Pacing) {
+        val queue = accounts.filter { platform in it.profiles }
+        if (session != null || queue.isEmpty()) return
+        session = Session(platform, ArrayDeque(queue), pacing)
+        overlay?.show(platform)
         RunMonitor.update {
-            it.copy(running = true, currentHandle = null, blocked = 0, cap = pacing.sessionCap, lastStop = null, lastBlocked = 0)
+            it.copy(
+                running = true, platform = platform, current = null, blocked = 0, cap = pacing.sessionCap,
+                lastStop = null, lastBlocked = 0,
+            )
         }
         handler.post(tick)
     }
@@ -98,7 +104,7 @@ class BlockService : AccessibilityService() {
         handler.removeCallbacks(eventCheck)
         overlay?.hide()
         RunMonitor.update {
-            it.copy(running = false, currentHandle = null, lastStop = reason, lastBlocked = ended.blocked)
+            it.copy(running = false, current = null, lastStop = reason, lastBlocked = ended.blocked)
         }
         if (reason != StopReason.SERVICE_DISCONNECTED) returnToApp()
     }
@@ -121,7 +127,8 @@ class BlockService : AccessibilityService() {
                 // Gives X a moment to react to the previous tap before the tree is read again.
                 if (session.step != Step.PROFILE && now - session.stepStartedAt < TAP_DWELL_MS) return
                 val account = session.current ?: return openNext(session, now)
-                inspect(session, account, captureScreen(), now)
+                val profile = account.profiles.getValue(session.platform)
+                inspect(session, account, captureScreen(session.platform, profile), now)
             }
         }
     }
@@ -129,51 +136,53 @@ class BlockService : AccessibilityService() {
     private fun openNext(session: Session, now: Long) {
         if (session.capReached) return stop(StopReason.CAP_REACHED)
         val account = session.queue.removeFirstOrNull() ?: return stop(StopReason.FINISHED)
+        val platform = session.platform
         // A fresh task guarantees the previous profile is gone before the next one is inspected.
-        val intent = Intent(Intent.ACTION_VIEW, "https://x.com/${account.handle}".toUri())
-            .setPackage(X_PACKAGE)
+        val intent = Intent(Intent.ACTION_VIEW, platform.appLink(account.profiles.getValue(platform)).toUri())
+            .setPackage(platform.packageName)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         try {
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
-            return stop(StopReason.X_NOT_INSTALLED)
+            return stop(StopReason.APP_NOT_INSTALLED)
         }
         session.current = account
         session.confirmRetried = false
         enter(session, Step.PROFILE, PROFILE_TIMEOUT_MS, now)
-        overlay?.showProgress(account.handle, session.blocked, session.pacing.sessionCap)
-        RunMonitor.update { it.copy(currentHandle = account.handle, blocked = session.blocked) }
+        val label = account.label(platform)
+        overlay?.showProgress(label, session.blocked, session.pacing.sessionCap)
+        RunMonitor.update { it.copy(current = label, blocked = session.blocked) }
     }
 
-    private fun inspect(session: Session, account: Account, screen: XScreen, now: Long) {
-        val handle = account.handle
+    private fun inspect(session: Session, account: Account, screen: BlockScreen, now: Long) {
         val elapsed = now - session.stepStartedAt
         when (session.step) {
             Step.PROFILE -> {
-                val handleShown = screen.showsHandle(handle)
-                val overflow = if (handleShown) screen.overflowButton() else null
+                val profileShown = screen.showsProfile()
+                val overflow = if (profileShown) screen.overflowButton() else null
                 val gate = screen.sensitiveGate()
                 when {
-                    handleShown && screen.isBlockedProfile(handle) -> finish(session, account, BlockStatus.ALREADY_BLOCKED, now)
+                    profileShown && screen.isBlockedProfile() -> finish(session, account, BlockStatus.ALREADY_BLOCKED, now)
                     overflow != null -> {
                         click(overflow)
                         enter(session, Step.MENU, MENU_TIMEOUT_MS, now)
                     }
-                    screen.isUnavailable() && (handleShown || elapsed > UNAVAILABLE_GRACE_MS) ->
+                    screen.isUnavailable() && (profileShown || elapsed > UNAVAILABLE_GRACE_MS) ->
                         finish(session, account, BlockStatus.UNAVAILABLE, now)
                     gate != null -> click(gate)
-                    !handleShown && elapsed > LOGIN_GRACE_MS && screen.isLoggedOut() -> stop(StopReason.LOGGED_OUT)
+                    !profileShown && elapsed > LOGIN_GRACE_MS && screen.isLoggedOut() -> stop(StopReason.LOGGED_OUT)
                     now > session.deadline -> finish(session, account, BlockStatus.FAILED, now)
                 }
             }
             Step.MENU -> {
-                val item = screen.blockMenuItem(handle)
+                val item = screen.blockMenuItem()
                 when {
+                    screen.menuShowsOtherProfile() -> finish(session, account, BlockStatus.FAILED, now)
                     item != null -> {
                         click(item)
                         enter(session, Step.CONFIRM, CONFIRM_TIMEOUT_MS, now)
                     }
-                    screen.hasUnblockMenuItem(handle) -> finish(session, account, BlockStatus.ALREADY_BLOCKED, now)
+                    screen.hasUnblockMenuItem() -> finish(session, account, BlockStatus.ALREADY_BLOCKED, now)
                     now > session.deadline -> finish(session, account, BlockStatus.FAILED, now)
                 }
             }
@@ -185,14 +194,14 @@ class BlockService : AccessibilityService() {
                         enter(session, Step.VERIFY, VERIFY_TIMEOUT_MS, now)
                     }
                     // Some X builds block straight from the menu without a dialog.
-                    screen.blockSucceeded(handle) -> finish(session, account, BlockStatus.BLOCKED, now)
+                    screen.blockSucceeded() -> finish(session, account, BlockStatus.BLOCKED, now)
                     now > session.deadline -> finish(session, account, BlockStatus.FAILED, now)
                 }
             }
             Step.VERIFY -> {
                 val button = if (session.confirmRetried) null else screen.confirmButton()
                 when {
-                    screen.blockSucceeded(handle) -> finish(session, account, BlockStatus.BLOCKED, now)
+                    screen.blockSucceeded() -> finish(session, account, BlockStatus.BLOCKED, now)
                     button != null && elapsed > CONFIRM_RETRY_MS -> {
                         session.confirmRetried = true
                         click(button)
@@ -211,8 +220,8 @@ class BlockService : AccessibilityService() {
     }
 
     private fun finish(session: Session, account: Account, status: BlockStatus, now: Long) {
-        progress.set(account, status)
-        if (status == BlockStatus.BLOCKED || status == BlockStatus.ALREADY_BLOCKED) counter.report(account)
+        progress.set(account.profiles.getValue(session.platform), status)
+        if (status == BlockStatus.BLOCKED || status == BlockStatus.ALREADY_BLOCKED) counter.report(account, session.platform)
         if (status == BlockStatus.BLOCKED) session.blocked++
         session.consecutiveFailures = if (status == BlockStatus.FAILED) session.consecutiveFailures + 1 else 0
         RunMonitor.update { it.copy(blocked = session.blocked) }
@@ -234,9 +243,10 @@ class BlockService : AccessibilityService() {
         }
     }
 
-    private fun captureScreen(): XScreen {
-        val roots = windows.mapNotNull { it.root }.filter { it.packageName == X_PACKAGE }
-            .ifEmpty { listOfNotNull(rootInActiveWindow?.takeIf { it.packageName == X_PACKAGE }) }
+    private fun captureScreen(platform: Platform, profile: Profile): BlockScreen {
+        val active = rootInActiveWindow
+        val roots = windows.mapNotNull { it.root }.filter { it.packageName == platform.packageName }
+            .ifEmpty { listOfNotNull(active?.takeIf { it.packageName == platform.packageName }) }
         val nodes = ArrayList<ScreenNode>()
         val bounds = Rect()
         val pending = ArrayDeque(roots)
@@ -249,7 +259,7 @@ class BlockService : AccessibilityService() {
             }
             for (i in 0 until node.childCount) node.getChild(i)?.let(pending::addLast)
         }
-        return XScreen(nodes, resources.displayMetrics.heightPixels)
+        return BlockScreen.of(platform, profile, nodes, resources.displayMetrics.heightPixels, active?.packageName?.toString())
     }
 
     /** Compose often puts the label on a child of the clickable node, so the click goes to the nearest clickable ancestor. */
@@ -278,14 +288,12 @@ class BlockService : AccessibilityService() {
     }
 
     companion object {
-        const val X_PACKAGE = "com.twitter.android"
-
-        /** False when X is missing or disabled; either way its profile links cannot be opened. */
-        fun isXInstalled(context: Context): Boolean = try {
+        /** False when the platform's app is missing or disabled; either way its profile links cannot be opened. */
+        fun isInstalled(context: Context, platform: Platform): Boolean = try {
             val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.packageManager.getApplicationInfo(X_PACKAGE, PackageManager.ApplicationInfoFlags.of(0))
+                context.packageManager.getApplicationInfo(platform.packageName, PackageManager.ApplicationInfoFlags.of(0))
             } else {
-                context.packageManager.getApplicationInfo(X_PACKAGE, 0)
+                context.packageManager.getApplicationInfo(platform.packageName, 0)
             }
             info.enabled
         } catch (_: PackageManager.NameNotFoundException) {
