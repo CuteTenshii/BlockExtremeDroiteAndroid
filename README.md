@@ -37,6 +37,8 @@ L'appli contacte onbloquelextremedroite.fun :
 
 Elle contacte aussi GitHub, sans rien envoyer d'autre que sa version, pour savoir si une mise à jour existe et la télécharger.
 
+L'écran des comptes affiche les photos choisies par le site, téléchargées depuis les sites qui les hébergent (assemblee-nationale.fr, Wikimedia Commons), qui voient donc passer ces requêtes. Pour les autres comptes, la photo de profil X passe par onbloquelextremedroite.fun. Les photos sont gardées une semaine en cache sur le téléphone.
+
 Rien d'autre ne sort du téléphone. Le service d'accessibilité ne lit que l'écran de l'appli X, et seulement pendant un blocage que vous avez lancé.
 
 ## Compiler

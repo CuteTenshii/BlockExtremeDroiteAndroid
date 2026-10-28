@@ -10,11 +10,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
 import moe.tenshii.blockextremedroite.databinding.ItemAccountBinding
 import java.text.NumberFormat
+import java.util.Locale
 
 /** [blockCount] is the site's collective count for this account, null until the counter loads. */
 data class AccountRow(val account: Account, val status: BlockStatus, val blockCount: Long?)
 
-class AccountAdapter(private val onOpen: (Account) -> Unit) :
+class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: (Account) -> Unit) :
     ListAdapter<AccountRow, AccountAdapter.Holder>(Diff) {
 
     private val numbers = NumberFormat.getIntegerInstance()
@@ -29,6 +30,9 @@ class AccountAdapter(private val onOpen: (Account) -> Unit) :
         val context = holder.itemView.context
         with(holder.binding) {
             accountName.text = account.name
+            accountInitials.text = account.name.split(Regex("\\s+")).filter { it.isNotEmpty() }.take(2)
+                .joinToString("") { it.take(1) }.uppercase(Locale.getDefault())
+            portraits.load(accountPortrait, account.avatarUrl, context.resources.getDimensionPixelSize(R.dimen.avatar_size))
             accountMeta.text = if (blockCount == null) {
                 context.getString(R.string.account_meta, account.handle, account.category)
             } else {

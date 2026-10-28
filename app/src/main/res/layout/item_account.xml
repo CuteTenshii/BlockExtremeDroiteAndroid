@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -8,6 +9,31 @@
     android:minHeight="56dp"
     android:orientation="horizontal"
     android:paddingVertical="8dp">
+
+    <FrameLayout
+        android:layout_width="@dimen/avatar_size"
+        android:layout_height="@dimen/avatar_size"
+        android:layout_marginEnd="12dp">
+
+        <TextView
+            android:id="@+id/accountInitials"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_avatar"
+            android:gravity="center"
+            android:importantForAccessibility="no"
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:textColor="?attr/colorOnSecondaryContainer"
+            tools:text="ML" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/accountPortrait"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"

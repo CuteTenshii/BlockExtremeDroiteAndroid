@@ -21,7 +21,7 @@ class AccountsActivity : AppCompatActivity() {
     private lateinit var settings: SettingsStore
     private lateinit var counter: BlockCounter
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val adapter = AccountAdapter(::openProfile)
+    private lateinit var adapter: AccountAdapter
 
     private var accounts: List<Account>? = null
     private var loadFailed = false
@@ -43,6 +43,7 @@ class AccountsActivity : AppCompatActivity() {
         progress = ProgressStore(this)
         settings = SettingsStore(this)
         counter = BlockCounter.get(this)
+        adapter = AccountAdapter(PortraitLoader.get(this), ::openProfile)
 
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.accounts.adapter = adapter

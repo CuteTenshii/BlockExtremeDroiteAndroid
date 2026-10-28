@@ -7,8 +7,8 @@ import org.junit.Test
 
 class AccountDirectoryTest {
 
-    private fun sources(accounts: String, directory: String = """{"entries":[]}""") =
-        DirectorySources(accounts, directory)
+    private fun sources(accounts: String, directory: String = """{"entries":[]}""", portraits: String? = null) =
+        DirectorySources(accounts, directory, portraits)
 
     @Test
     fun mergesCuratedAndDirectory() {
@@ -29,10 +29,13 @@ class AccountDirectoryTest {
                       {"id": "u3", "type": "update", "target_id": "pa1", "platform": "x", "profile_url": "https://x.com/bravo"}
                     ], "frozen": true}
                 """.trimIndent(),
+                portraits = """const portraits = {"alpha": {"url": "https://example.org/a.jpg"}, "u1": {"url": "http://example.org/d.jpg"}};""",
             ),
         )
         assertEquals(listOf("Alpha", "bravo", "charlie", "delta"), accounts.map { it.handle })
         assertEquals(listOf("alpha", "pa1", "charlie", "u1"), accounts.map { it.siteId })
+        // Portraits are keyed like the site's records, and only HTTPS photos are kept.
+        assertEquals(listOf("https://example.org/a.jpg", null, null, null), accounts.map { it.portraitUrl })
         // A community link update keeps a curated account curated.
         assertEquals(
             listOf(AccountSource.CURATED, AccountSource.CURATED, AccountSource.CURATED, AccountSource.COMMUNITY),

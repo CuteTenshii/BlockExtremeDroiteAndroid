@@ -5,6 +5,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.net.URI
+import java.net.URLEncoder
 import java.util.Locale
 
 /** Where the site lists an account: its team-verified `accounts.js`, or a community submission. */
@@ -19,14 +20,24 @@ data class Account(
     val category: String,
     val reason: String,
     val source: AccountSource,
+    /** The site's hand-picked photo (`portraits.js`), null for accounts it has none for. */
+    val portraitUrl: String?,
 ) {
     /** X handles are case-insensitive, so progress is keyed on the lowercase form. */
     val key: String
         get() = handle.lowercase(Locale.ROOT)
+
+    /** The site's portrait when it picked one, else the X profile picture through the site's `/avatar` proxy. */
+    val avatarUrl: String
+        get() = portraitUrl
+            ?: "${AccountRepository.SITE}/avatar?net=x&u=" + URLEncoder.encode("https://x.com/$handle", Charsets.UTF_8.name())
 }
 
-/** The site's curated `accounts.js` (absent from the API) and the `/api/accounts` community directory. */
-class DirectorySources(val accountsScript: String, val directoryJson: String)
+/**
+ * The site's curated `accounts.js` (absent from the API), the `/api/accounts` community directory, and
+ * `portraits.js`, which is null when it couldn't be fetched since photos are optional.
+ */
+class DirectorySources(val accountsScript: String, val directoryJson: String, val portraitsScript: String? = null)
 
 @InternalSerializationApi @Serializable
 private data class CuratedAccount(
@@ -36,6 +47,9 @@ private data class CuratedAccount(
     val category: String = "",
     val reason: String = "",
 )
+
+@InternalSerializationApi @Serializable
+private data class Portrait(val url: String = "")
 
 @InternalSerializationApi @Serializable
 private data class Directory(
@@ -71,7 +85,10 @@ object AccountDirectory {
      */
     @OptIn(InternalSerializationApi::class)
     fun build(sources: DirectorySources): List<Account> {
-        val curated = json.decodeFromString<List<CuratedAccount>>(arrayLiteral(sources.accountsScript))
+        val curated = json.decodeFromString<List<CuratedAccount>>(literal(sources.accountsScript, '[', ']'))
+        val portraits = sources.portraitsScript
+            ?.let { script -> runCatching { json.decodeFromString<Map<String, Portrait>>(literal(script, '{', '}')) }.getOrNull() }
+            .orEmpty()
         val directory = json.decodeFromString<Directory>(sources.directoryJson)
         require(!directory.stale) { "Directory snapshot is stale" }
 
@@ -111,6 +128,7 @@ object AccountDirectory {
             val handle = record.xLink?.let(::handleFromLink) ?: continue
             val account = Account(
                 key, handle, record.name.trim().ifEmpty { handle }, record.category.trim(), record.reason.trim(), record.source,
+                portraitUrl = portraits[key]?.url?.trim()?.takeIf { it.startsWith("https://") },
             )
             if (key in removed) removedHandles += account.key
             byHandle.putIfAbsent(account.key, account)
@@ -132,10 +150,10 @@ object AccountDirectory {
         return handle
     }
 
-    /** Extracts the JSON array from a `const accounts = [...];` script, skipping any leading comments. */
-    private fun arrayLiteral(script: String): String {
-        val start = script.indexOf('=').let { if (it < 0) -1 else script.indexOf('[', it) }
-        val end = script.lastIndexOf(']')
+    /** Extracts the JSON literal from a `const name = [...];` or `{...}` script, skipping any leading comments. */
+    private fun literal(script: String, open: Char, close: Char): String {
+        val start = script.indexOf('=').let { if (it < 0) -1 else script.indexOf(open, it) }
+        val end = script.lastIndexOf(close)
         require(start in 0 until end) { "No JSON literal found" }
         return script.substring(start, end + 1)
     }
