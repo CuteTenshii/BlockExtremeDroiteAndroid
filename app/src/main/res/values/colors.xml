@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Palette from onbloquelextremedroite.fun; the red is darkened to keep 4.5:1 under white text. -->
+    <color name="ground">#FFF7F4F1</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="ink">#FF171717</color>
+    <color name="muted">#FF5E5854</color>
+    <color name="border">#FFE1DCDA</color>
+    <color name="brand">#FFB2272A</color>
+    <color name="on_brand">#FFFFFFFF</color>
+    <color name="brand_container">#FFFFDAD6</color>
+    <color name="on_brand_container">#FF410003</color>
+    <color name="success">#FF1E6B3A</color>
+</resources>

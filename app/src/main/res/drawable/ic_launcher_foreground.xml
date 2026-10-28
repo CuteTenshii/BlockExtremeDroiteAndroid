@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The site's sign, scaled from its 64-unit favicon to fit the 66dp adaptive safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,34.875A19.125,19.125 0,1 1,54 73.125A19.125,19.125 0,1 1,54 34.875Z"
+        android:strokeWidth="7.875"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:pathData="M40.5,67.5L67.5,40.5"
+        android:strokeWidth="7.875"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+</vector>

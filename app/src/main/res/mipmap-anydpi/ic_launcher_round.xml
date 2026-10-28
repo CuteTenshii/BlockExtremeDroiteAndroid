@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-API 26 round launchers: the site's sign on a red disc. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path
+        android:fillColor="#EF2529"
+        android:pathData="M32,0A32,32 0,1 1,32 64A32,32 0,1 1,32 0Z" />
+    <path
+        android:pathData="M32,15A17,17 0,1 1,32 49A17,17 0,1 1,32 15Z"
+        android:strokeWidth="7"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:pathData="M20,44L44,20"
+        android:strokeWidth="7"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+</vector>

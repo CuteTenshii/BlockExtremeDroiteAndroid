@@ -1,0 +1,106 @@
+<resources>
+    <string name="repository">Source code on GitHub</string>
+    <string name="intro">Automatically blocks, from the X app, the accounts listed on onbloquelextremedroite.fun.</string>
+
+    <string name="x_missing_title">The X app isn\'t installed</string>
+    <string name="x_missing_body">Blocking goes through the official X app. Install it and log in, then come back here.</string>
+    <string name="x_install">Install X</string>
+
+    <string name="service_title">Accessibility service</string>
+    <string name="service_on">On. The app can drive X for you.</string>
+    <string name="service_off">Off. Turn it on so the app can block in X.</string>
+    <string name="service_enable">Turn on</string>
+    <string name="disclosure_title">Before you turn it on</string>
+    <string name="disclosure_body">The service reads the X app\'s screen and taps ⋯, Block and the confirmation for you. It only acts inside X, only when you start blocking, and sends no data anywhere.</string>
+    <string name="disclosure_restricted">If the switch is greyed out: open App info, the ⋮ menu, \"Allow restricted settings\", then come back and turn the service on.</string>
+    <string name="disclosure_open_settings">Open settings</string>
+    <string name="disclosure_app_info">App info</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="list_title">List</string>
+    <string name="list_loading">Loading the list…</string>
+    <string name="list_load_failed">Couldn\'t download the list. Check your connection, then tap Update.</string>
+    <plurals name="list_updated">
+        <item quantity="one">%1$d X account · updated %2$s</item>
+        <item quantity="other">%1$d X accounts · updated %2$s</item>
+    </plurals>
+    <string name="list_refresh">Update</string>
+    <string name="list_refreshing">Updating…</string>
+    <plurals name="list_refresh_done">
+        <item quantity="one">List updated: %d account</item>
+        <item quantity="other">List updated: %d accounts</item>
+    </plurals>
+    <string name="list_refresh_failed">Couldn\'t fetch the list. The app keeps the saved version.</string>
+    <string name="source_credit">Source: onbloquelextremedroite.fun</string>
+
+    <plurals name="collective_total">
+        <item quantity="one">%s block reported together</item>
+        <item quantity="other">%s blocks reported together</item>
+    </plurals>
+    <string name="categories_title">Categories</string>
+    <string name="category_chip">%1$s · %2$d</string>
+    <string name="no_category">Pick at least one category.</string>
+
+    <string name="pacing_title">Pace</string>
+    <string name="pacing_no_pause">Pause between blocks: none</string>
+    <string name="pacing_delay_fixed">Pause between blocks: %d s</string>
+    <string name="pacing_delay">Pause between blocks: %1$d to %2$d s</string>
+    <string name="pacing_no_limit">Max per session: no limit</string>
+    <string name="pacing_cap">Max per session: %d</string>
+    <string name="pacing_hint">Blocking too fast can get your X account rate-limited, especially with no pause.</string>
+
+    <string name="summary">To block: %1$d · Blocked: %2$d · Not found: %3$d</string>
+    <string name="start">Start blocking</string>
+    <string name="stop">Stop</string>
+    <string name="nothing_to_block">Nothing left to block in the selected categories.</string>
+    <string name="run_starting">Opening X…</string>
+    <plurals name="run_running_unlimited">
+        <item quantity="one">Running: @%1$s · %2$d blocked</item>
+        <item quantity="other">Running: @%1$s · %2$d blocked</item>
+    </plurals>
+    <plurals name="run_running">
+        <item quantity="one">Running: @%1$s · %2$d of %3$d blocked</item>
+        <item quantity="other">Running: @%1$s · %2$d of %3$d blocked</item>
+    </plurals>
+    <string name="stop_finished">Done: nothing left to block in these categories.</string>
+    <plurals name="stop_cap">
+        <item quantity="one">Session over: %d account blocked. Start again later to continue.</item>
+        <item quantity="other">Session over: %d accounts blocked. Start again later to continue.</item>
+    </plurals>
+    <plurals name="stop_user">
+        <item quantity="one">Stopped. %d account blocked this session.</item>
+        <item quantity="other">Stopped. %d accounts blocked this session.</item>
+    </plurals>
+    <string name="stop_x_missing">The X app isn\'t installed.</string>
+    <string name="stop_logged_out">Log in to the X app, then start again.</string>
+    <string name="stop_failures">Stopped after 3 failures in a row. X may have changed its layout or be limiting your account. Try again later.</string>
+    <string name="stop_service">The accessibility service was turned off.</string>
+
+    <string name="reset">Reset progress</string>
+    <string name="reset_title">Reset progress?</string>
+    <string name="reset_body">Every account goes back to \"to block\". Accounts already blocked on X stay blocked: the app will recognise them and move on.</string>
+    <string name="reset_confirm">Reset</string>
+
+    <string name="accounts_title">Accounts</string>
+    <string name="accounts_hint">Tap an account to open its profile in X.</string>
+    <string name="accounts_empty">No accounts in the selected categories.</string>
+    <string name="account_meta">\@%1$s · %2$s</string>
+    <plurals name="account_meta_count">
+        <item quantity="one">\@%1$s · %2$s · %3$s block</item>
+        <item quantity="other">\@%1$s · %2$s · %3$s blocks</item>
+    </plurals>
+    <string name="status_pending">To block</string>
+    <string name="status_blocked">Blocked</string>
+    <string name="status_already">Already blocked</string>
+    <string name="status_unavailable">Not found</string>
+    <string name="status_failed">Failed</string>
+
+    <string name="overlay_starting">Opening X…</string>
+    <string name="overlay_blocking">\@%1$s · %2$d/%3$d</string>
+    <string name="overlay_blocking_unlimited">\@%1$s · %2$d</string>
+    <string name="overlay_pause_unlimited">Paused · %d</string>
+    <string name="overlay_pause">Paused · %1$d/%2$d</string>
+    <string name="overlay_stop">Stop</string>
+
+    <string name="accessibility_description">Opens the profiles listed on onbloquelextremedroite.fun in the X app and taps Block for you. It only acts inside X, and only when you start blocking from the app.</string>
+</resources>

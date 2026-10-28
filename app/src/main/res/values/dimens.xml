@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="gutter">16dp</dimen>
+    <dimen name="section_gap">12dp</dimen>
+    <dimen name="overlay_top_offset">40dp</dimen>
+</resources>

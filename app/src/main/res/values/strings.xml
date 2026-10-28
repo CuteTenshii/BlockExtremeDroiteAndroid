@@ -1,0 +1,115 @@
+<resources>
+    <string name="app_name" translatable="false">Block Extreme Droite</string>
+    <string name="repository">Code source sur GitHub</string>
+    <string name="intro">Bloque automatiquement, depuis l’appli X, les comptes listés sur onbloquelextremedroite.fun.</string>
+
+    <string name="x_missing_title">L’appli X n’est pas installée</string>
+    <string name="x_missing_body">Le blocage passe par l’appli X officielle. Installe-la et connecte-toi, puis reviens ici.</string>
+    <string name="x_install">Installer X</string>
+
+    <string name="service_title">Service d’accessibilité</string>
+    <string name="service_on">Activé. L’appli peut piloter X à ta place.</string>
+    <string name="service_off">Désactivé. Active-le pour que l’appli puisse bloquer dans X.</string>
+    <string name="service_enable">Activer</string>
+    <string name="disclosure_title">Avant d’activer</string>
+    <string name="disclosure_body">Le service lit l’écran de l’appli X et appuie à ta place sur ⋯, Bloquer puis sur la confirmation. Il n’agit que dans X, seulement quand tu lances un blocage, et n’envoie aucune donnée.</string>
+    <string name="disclosure_restricted">Si l’interrupteur est grisé\u00A0: ouvre Infos de l’appli, menu ⋮, «\u00A0Autoriser les paramètres restreints\u00A0», puis reviens activer le service.</string>
+    <string name="disclosure_open_settings">Ouvrir les réglages</string>
+    <string name="disclosure_app_info">Infos de l’appli</string>
+    <string name="cancel">Annuler</string>
+
+    <string name="list_title">Liste</string>
+    <string name="list_loading">Chargement de la liste…</string>
+    <string name="list_load_failed">Impossible de télécharger la liste. Vérifie ta connexion puis touche Mettre à jour.</string>
+    <plurals name="list_updated">
+        <item quantity="one">%1$d compte X · mis à jour le %2$s</item>
+        <item quantity="many">%1$d comptes X · mis à jour le %2$s</item>
+        <item quantity="other">%1$d comptes X · mis à jour le %2$s</item>
+    </plurals>
+    <string name="list_refresh">Mettre à jour</string>
+    <string name="list_refreshing">Mise à jour…</string>
+    <plurals name="list_refresh_done">
+        <item quantity="one">Liste à jour\u00A0: %d compte</item>
+        <item quantity="many">Liste à jour\u00A0: %d comptes</item>
+        <item quantity="other">Liste à jour\u00A0: %d comptes</item>
+    </plurals>
+    <string name="list_refresh_failed">Impossible de récupérer la liste. L’appli garde la version enregistrée.</string>
+    <string name="source_credit">Source\u00A0: onbloquelextremedroite.fun</string>
+
+    <plurals name="collective_total">
+        <item quantity="one">%s blocage déclaré ensemble</item>
+        <item quantity="many">%s blocages déclarés ensemble</item>
+        <item quantity="other">%s blocages déclarés ensemble</item>
+    </plurals>
+    <string name="categories_title">Catégories</string>
+    <string name="category_chip">%1$s · %2$d</string>
+    <string name="no_category">Choisis au moins une catégorie.</string>
+
+    <string name="pacing_title">Rythme</string>
+    <string name="pacing_no_pause">Pause entre deux blocages\u00A0: aucune</string>
+    <string name="pacing_delay_fixed">Pause entre deux blocages\u00A0: %d s</string>
+    <string name="pacing_delay">Pause entre deux blocages\u00A0: %1$d à %2$d s</string>
+    <string name="pacing_no_limit">Maximum par session\u00A0: sans limite</string>
+    <string name="pacing_cap">Maximum par session\u00A0: %d</string>
+    <string name="pacing_hint">Bloquer trop vite peut faire limiter ton compte X, surtout sans pause.</string>
+
+    <string name="summary">À bloquer\u00A0: %1$d · Bloqués\u00A0: %2$d · Introuvables\u00A0: %3$d</string>
+    <string name="start">Lancer le blocage</string>
+    <string name="stop">Arrêter</string>
+    <string name="nothing_to_block">Rien à bloquer dans les catégories choisies.</string>
+    <string name="run_starting">Ouverture de X…</string>
+    <plurals name="run_running_unlimited">
+        <item quantity="one">En cours\u00A0: @%1$s · %2$d bloqué</item>
+        <item quantity="many">En cours\u00A0: @%1$s · %2$d bloqués</item>
+        <item quantity="other">En cours\u00A0: @%1$s · %2$d bloqués</item>
+    </plurals>
+    <plurals name="run_running">
+        <item quantity="one">En cours\u00A0: @%1$s · %2$d bloqué sur %3$d</item>
+        <item quantity="many">En cours\u00A0: @%1$s · %2$d bloqués sur %3$d</item>
+        <item quantity="other">En cours\u00A0: @%1$s · %2$d bloqués sur %3$d</item>
+    </plurals>
+    <string name="stop_finished">Terminé\u00A0: plus rien à bloquer dans ces catégories.</string>
+    <plurals name="stop_cap">
+        <item quantity="one">Session terminée\u00A0: %d compte bloqué. Relance plus tard pour continuer.</item>
+        <item quantity="many">Session terminée\u00A0: %d comptes bloqués. Relance plus tard pour continuer.</item>
+        <item quantity="other">Session terminée\u00A0: %d comptes bloqués. Relance plus tard pour continuer.</item>
+    </plurals>
+    <plurals name="stop_user">
+        <item quantity="one">Arrêté. %d compte bloqué pendant cette session.</item>
+        <item quantity="many">Arrêté. %d comptes bloqués pendant cette session.</item>
+        <item quantity="other">Arrêté. %d comptes bloqués pendant cette session.</item>
+    </plurals>
+    <string name="stop_x_missing">L’appli X n’est pas installée.</string>
+    <string name="stop_logged_out">Connecte-toi dans l’appli X, puis relance.</string>
+    <string name="stop_failures">Arrêté après 3 échecs d’affilée. X a peut-être changé son interface ou limite ton compte. Réessaie plus tard.</string>
+    <string name="stop_service">Le service d’accessibilité a été désactivé.</string>
+
+    <string name="reset">Réinitialiser la progression</string>
+    <string name="reset_title">Réinitialiser la progression\u00A0?</string>
+    <string name="reset_body">Tous les comptes repassent à bloquer. Ceux déjà bloqués sur X le restent\u00A0: l’appli les reconnaîtra et passera au suivant.</string>
+    <string name="reset_confirm">Réinitialiser</string>
+
+    <string name="accounts_title">Comptes</string>
+    <string name="accounts_hint">Touche un compte pour ouvrir son profil dans X.</string>
+    <string name="accounts_empty">Aucun compte dans les catégories choisies.</string>
+    <string name="account_meta">\@%1$s · %2$s</string>
+    <plurals name="account_meta_count">
+        <item quantity="one">\@%1$s · %2$s · %3$s blocage</item>
+        <item quantity="many">\@%1$s · %2$s · %3$s blocages</item>
+        <item quantity="other">\@%1$s · %2$s · %3$s blocages</item>
+    </plurals>
+    <string name="status_pending">À bloquer</string>
+    <string name="status_blocked">Bloqué</string>
+    <string name="status_already">Déjà bloqué</string>
+    <string name="status_unavailable">Introuvable</string>
+    <string name="status_failed">Échec</string>
+
+    <string name="overlay_starting">Ouverture de X…</string>
+    <string name="overlay_blocking">\@%1$s · %2$d/%3$d</string>
+    <string name="overlay_blocking_unlimited">\@%1$s · %2$d</string>
+    <string name="overlay_pause_unlimited">Pause · %d</string>
+    <string name="overlay_pause">Pause · %1$d/%2$d</string>
+    <string name="overlay_stop">Arrêter</string>
+
+    <string name="accessibility_description">Ouvre dans l’appli X les profils listés sur onbloquelextremedroite.fun et appuie sur Bloquer à ta place. Agit uniquement dans X, et seulement quand tu lances un blocage depuis l’appli.</string>
+</resources>

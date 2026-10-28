@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and below; same rules as data_extraction_rules.xml. -->
+<full-backup-content>
+    <include domain="sharedpref" path="progress.xml" />
+    <include domain="sharedpref" path="settings.xml" />
+    <include domain="sharedpref" path="counter.xml" />
+</full-backup-content>

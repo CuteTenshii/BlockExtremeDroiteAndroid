@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_overlay"
+    android:elevation="6dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="4dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="4dp">
+
+    <TextView
+        android:id="@+id/overlayStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="220dp"
+        android:maxLines="1"
+        android:ellipsize="middle"
+        android:textAppearance="?attr/textAppearanceLabelLarge"
+        android:textColor="@color/ground" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/overlayStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:minHeight="48dp"
+        android:text="@string/overlay_stop" />
+</LinearLayout>

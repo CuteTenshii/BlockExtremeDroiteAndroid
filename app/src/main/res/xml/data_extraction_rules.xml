@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+. The account list is skipped: it is re-downloaded on first launch and would be stale. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="progress.xml" />
+        <include domain="sharedpref" path="settings.xml" />
+        <include domain="sharedpref" path="counter.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="progress.xml" />
+        <include domain="sharedpref" path="settings.xml" />
+        <include domain="sharedpref" path="counter.xml" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,351 @@
+package moe.tenshii.blockextremedroite
+
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.text.format.DateUtils
+import android.view.View
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
+import moe.tenshii.blockextremedroite.databinding.ActivityMainBinding
+import moe.tenshii.blockextremedroite.databinding.ItemCategoryChipBinding
+import java.text.NumberFormat
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var repository: AccountRepository
+    private lateinit var progress: ProgressStore
+    private lateinit var settings: SettingsStore
+    private lateinit var counter: BlockCounter
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val adapter = AccountAdapter(::openProfile)
+
+    private var accounts: List<Account> = emptyList()
+    private var listLoadFailed = false
+    private var refreshing = false
+    private var counts: CounterSnapshot? = null
+    private var wasRunning = false
+    private var xInstalled = true
+    private val numbers = NumberFormat.getIntegerInstance()
+    private val runListener: (RunState) -> Unit = { state ->
+        // Reports are sent in the background, so give them a moment before reading the counter back.
+        if (wasRunning && !state.running) binding.root.postDelayed(::loadCounts, COUNTS_RELOAD_DELAY_MS)
+        wasRunning = state.running
+        render()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
+            insets
+        }
+
+        repository = AccountRepository(this)
+        progress = ProgressStore(this)
+        settings = SettingsStore(this)
+        counter = BlockCounter.get(this)
+
+        binding.accounts.adapter = adapter
+        binding.accounts.itemAnimator = null
+        binding.enableService.setOnClickListener { showDisclosure() }
+        binding.installX.setOnClickListener { openXStorePage() }
+        binding.openRepository.setOnClickListener { openRepository() }
+        binding.refreshList.setOnClickListener { refreshList() }
+        binding.startStop.setOnClickListener { toggleRun() }
+        binding.resetProgress.setOnClickListener { confirmReset() }
+        setUpPacing()
+        loadList()
+        loadCounts()
+        counter.flush()
+    }
+
+    override fun onStart() {
+        xInstalled = BlockService.isXInstalled(this)
+        super.onStart()
+        RunMonitor.addListener(runListener)
+    }
+
+    override fun onStop() {
+        RunMonitor.removeListener(runListener)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        executor.shutdownNow()
+        super.onDestroy()
+    }
+
+    private fun setUpPacing() {
+        val pacing = settings.pacing
+        binding.delaySlider.values = listOf(
+            pacing.minDelaySeconds.coerceIn(SettingsStore.DELAY_RANGE_MIN, SettingsStore.DELAY_RANGE_MAX).toFloat(),
+            pacing.maxDelaySeconds.coerceIn(SettingsStore.DELAY_RANGE_MIN, SettingsStore.DELAY_RANGE_MAX).toFloat(),
+        )
+        binding.capSlider.valueFrom = SettingsStore.CAP_MIN.toFloat()
+        binding.capSlider.valueTo = SettingsStore.CAP_NO_LIMIT_POSITION.toFloat()
+        binding.capSlider.stepSize = SettingsStore.CAP_STEP.toFloat()
+        binding.capSlider.value =
+            (pacing.sessionCap?.coerceIn(SettingsStore.CAP_MIN, SettingsStore.CAP_MAX) ?: SettingsStore.CAP_NO_LIMIT_POSITION).toFloat()
+        binding.delaySlider.addOnChangeListener { _, _, _ -> savePacing() }
+        binding.capSlider.addOnChangeListener { _, _, _ -> savePacing() }
+        renderPacing()
+    }
+
+    private fun savePacing() {
+        val (min, max) = binding.delaySlider.values.map { it.toInt() }.sorted()
+        val cap = binding.capSlider.value.toInt().takeIf { it <= SettingsStore.CAP_MAX }
+        settings.pacing = Pacing(min, max, cap)
+        renderPacing()
+    }
+
+    private fun renderPacing() {
+        val pacing = settings.pacing
+        binding.delayLabel.text = when {
+            pacing.maxDelaySeconds == 0 -> getString(R.string.pacing_no_pause)
+            pacing.minDelaySeconds == pacing.maxDelaySeconds -> getString(R.string.pacing_delay_fixed, pacing.maxDelaySeconds)
+            else -> getString(R.string.pacing_delay, pacing.minDelaySeconds, pacing.maxDelaySeconds)
+        }
+        binding.capLabel.text = pacing.sessionCap?.let { getString(R.string.pacing_cap, it) } ?: getString(R.string.pacing_no_limit)
+    }
+
+    private fun loadList() {
+        refreshing = true
+        executor.execute {
+            val result = runCatching { repository.load() }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                refreshing = false
+                result.onSuccess { accounts = it }
+                listLoadFailed = result.isFailure
+                buildCategoryChips()
+                render()
+            }
+        }
+    }
+
+    private fun loadCounts() {
+        executor.execute {
+            val result = runCatching { counter.fetch() }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                result.onSuccess { counts = it }
+                render()
+            }
+        }
+    }
+
+    private fun refreshList() {
+        if (refreshing) return
+        refreshing = true
+        render()
+        executor.execute {
+            val result = runCatching { repository.refresh() }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                refreshing = false
+                result.onSuccess {
+                    accounts = it
+                    listLoadFailed = false
+                    buildCategoryChips()
+                    snackbar(resources.getQuantityString(R.plurals.list_refresh_done, it.size, it.size))
+                }.onFailure {
+                    snackbar(getString(R.string.list_refresh_failed))
+                }
+                render()
+            }
+        }
+    }
+
+    private fun buildCategoryChips() {
+        val excluded = settings.excludedCategories
+        val counts = accounts.groupingBy { it.category }.eachCount().entries.sortedByDescending { it.value }
+        binding.categories.removeAllViews()
+        for ((category, count) in counts) {
+            val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.categories, false).root.apply {
+                text = getString(R.string.category_chip, category, count)
+                isChecked = category !in excluded
+                setOnCheckedChangeListener { _, checked ->
+                    settings.excludedCategories =
+                        if (checked) settings.excludedCategories - category else settings.excludedCategories + category
+                    render()
+                }
+            }
+            binding.categories.addView(chip)
+        }
+    }
+
+    private fun selectedAccounts(): List<Account> {
+        val excluded = settings.excludedCategories
+        return accounts.filter { it.category !in excluded }
+    }
+
+    private fun render() {
+        val state = RunMonitor.state
+
+        val snapshot = counts
+        binding.collectiveTotal.isVisible = snapshot != null
+        if (snapshot != null) {
+            binding.collectiveTotal.text = resources.getQuantityString(
+                R.plurals.collective_total, pluralQuantity(snapshot.total), numbers.format(snapshot.total),
+            )
+        }
+
+        binding.xMissing.isVisible = !xInstalled
+
+        binding.serviceStatus.setText(if (state.serviceConnected) R.string.service_on else R.string.service_off)
+        binding.enableService.isVisible = !state.serviceConnected
+
+        binding.listInfo.text = when {
+            listLoadFailed -> getString(R.string.list_load_failed)
+            accounts.isEmpty() -> getString(R.string.list_loading)
+            else -> resources.getQuantityString(
+                R.plurals.list_updated, accounts.size, accounts.size,
+                DateUtils.formatDateTime(this, repository.lastUpdated, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
+            )
+        }
+        binding.refreshList.isEnabled = !refreshing && !state.running
+        binding.refreshList.setText(if (refreshing) R.string.list_refreshing else R.string.list_refresh)
+        for (i in 0 until binding.categories.childCount) binding.categories.getChildAt(i).isEnabled = !state.running
+        binding.delaySlider.isEnabled = !state.running
+        binding.capSlider.isEnabled = !state.running
+        binding.resetProgress.isEnabled = !state.running
+
+        val rows = selectedAccounts().map { AccountRow(it, progress.status(it), snapshot?.perAccount?.get(it.siteId)) }
+        adapter.submitList(rows)
+        binding.accountsEmpty.isVisible = accounts.isNotEmpty() && rows.isEmpty()
+        val pending = rows.count { !it.status.isDone }
+        val blocked = rows.count { it.status == BlockStatus.BLOCKED || it.status == BlockStatus.ALREADY_BLOCKED }
+        val unavailable = rows.count { it.status == BlockStatus.UNAVAILABLE }
+        binding.summary.text = getString(R.string.summary, pending, blocked, unavailable)
+
+        binding.startStop.setText(if (state.running) R.string.stop else R.string.start)
+        binding.startStop.isEnabled = state.running || (xInstalled && state.serviceConnected && pending > 0)
+
+        val runText = runStatusText(state, rows.isEmpty(), pending)
+        binding.runStatus.text = runText
+        binding.runStatus.visibility = if (runText == null) View.GONE else View.VISIBLE
+    }
+
+    private fun runStatusText(state: RunState, noSelection: Boolean, pending: Int): String? = when {
+        state.running && state.currentHandle == null -> getString(R.string.run_starting)
+        state.running && state.cap == null ->
+            resources.getQuantityString(R.plurals.run_running_unlimited, state.blocked, state.currentHandle, state.blocked)
+        state.running -> resources.getQuantityString(R.plurals.run_running, state.blocked, state.currentHandle, state.blocked, state.cap)
+        state.lastStop != null -> when (state.lastStop) {
+            StopReason.FINISHED -> getString(R.string.stop_finished)
+            StopReason.CAP_REACHED -> resources.getQuantityString(R.plurals.stop_cap, state.lastBlocked, state.lastBlocked)
+            StopReason.USER -> resources.getQuantityString(R.plurals.stop_user, state.lastBlocked, state.lastBlocked)
+            StopReason.X_NOT_INSTALLED -> getString(R.string.stop_x_missing)
+            StopReason.LOGGED_OUT -> getString(R.string.stop_logged_out)
+            StopReason.TOO_MANY_FAILURES -> getString(R.string.stop_failures)
+            StopReason.SERVICE_DISCONNECTED -> getString(R.string.stop_service)
+        }
+        accounts.isEmpty() -> null
+        settings.excludedCategories.isNotEmpty() && noSelection -> getString(R.string.no_category)
+        pending == 0 -> getString(R.string.nothing_to_block)
+        else -> null
+    }
+
+    private fun toggleRun() {
+        val service = BlockService.instance
+        if (RunMonitor.state.running) {
+            service?.stop(StopReason.USER)
+            return
+        }
+        if (service == null) {
+            showDisclosure()
+            return
+        }
+        val queue = selectedAccounts().filter { !progress.status(it).isDone }
+        if (queue.isEmpty()) {
+            snackbar(getString(R.string.nothing_to_block))
+            return
+        }
+        service.start(queue, settings.pacing)
+    }
+
+    private fun showDisclosure() {
+        val message = buildString {
+            append(getString(R.string.disclosure_body))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                append("\n\n")
+                append(getString(R.string.disclosure_restricted))
+            }
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.disclosure_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.disclosure_open_settings) { _, _ ->
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNegativeButton(R.string.cancel, null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            dialog.setNeutralButton(R.string.disclosure_app_info) { _, _ ->
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+            }
+        }
+        dialog.show()
+    }
+
+    private fun confirmReset() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.reset_title)
+            .setMessage(R.string.reset_body)
+            .setPositiveButton(R.string.reset_confirm) { _, _ ->
+                progress.clear()
+                RunMonitor.update { it.copy(lastStop = null) }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun openRepository() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Http.PROJECT_URL.toUri()))
+        } catch (_: ActivityNotFoundException) {
+            snackbar(Http.PROJECT_URL)
+        }
+    }
+
+    private fun openXStorePage() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=${BlockService.X_PACKAGE}".toUri()))
+        } catch (_: ActivityNotFoundException) {
+            startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${BlockService.X_PACKAGE}".toUri()))
+        }
+    }
+
+    private fun openProfile(account: Account) {
+        val uri = "https://x.com/${account.handle}".toUri()
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(BlockService.X_PACKAGE))
+        } catch (_: ActivityNotFoundException) {
+            startActivity(Intent(Intent.ACTION_VIEW, uri))
+        }
+    }
+
+    private fun snackbar(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+    }
+
+    private companion object {
+        const val COUNTS_RELOAD_DELAY_MS = 3_000L
+    }
+}
