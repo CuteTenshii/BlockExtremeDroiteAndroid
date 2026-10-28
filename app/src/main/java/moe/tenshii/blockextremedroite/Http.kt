@@ -2,6 +2,7 @@ package moe.tenshii.blockextremedroite
 
 import android.os.Build
 import androidx.annotation.WorkerThread
+import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,13 +20,36 @@ object Http {
     @Throws(IOException::class)
     fun postJson(url: String, json: String): String = request(url, body = json)
 
-    private fun request(url: String, body: String?): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
+    /** Streams [url] into [target]; [onProgress] gets the bytes written so far and the total, or -1 when unknown. */
+    @WorkerThread
+    @Throws(IOException::class)
+    fun download(url: String, target: File, onProgress: (downloaded: Long, total: Long) -> Unit) {
+        val connection = open(url)
         try {
-            connection.connectTimeout = TIMEOUT_MS
-            connection.readTimeout = TIMEOUT_MS
-            connection.useCaches = false
-            connection.setRequestProperty("User-Agent", USER_AGENT)
+            val code = connection.responseCode
+            if (code != HttpURLConnection.HTTP_OK) throw IOException("HTTP $code for $url")
+            val total = connection.contentLengthLong
+            connection.inputStream.use { input ->
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var downloaded = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        output.write(buffer, 0, read)
+                        downloaded += read
+                        onProgress(downloaded, total)
+                    }
+                }
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun request(url: String, body: String?): String {
+        val connection = open(url)
+        try {
             if (body != null) {
                 connection.requestMethod = "POST"
                 connection.doOutput = true
@@ -39,4 +63,12 @@ object Http {
             connection.disconnect()
         }
     }
+
+    private fun open(url: String): HttpURLConnection =
+        (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = TIMEOUT_MS
+            readTimeout = TIMEOUT_MS
+            useCaches = false
+            setRequestProperty("User-Agent", USER_AGENT)
+        }
 }

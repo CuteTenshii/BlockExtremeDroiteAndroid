@@ -103,4 +103,20 @@
     <string name="overlay_stop">Stop</string>
 
     <string name="accessibility_description">Opens the profiles listed on onbloquelextremedroite.fun in the X app and taps Block for you. It only acts inside X, and only when you start blocking from the app.</string>
+
+    <string name="update_title">Version %s is available</string>
+    <string name="update_body">You have version %s.</string>
+    <string name="update_body_running">Stop or finish the current blocking session to update.</string>
+    <string name="update_install">Update</string>
+    <string name="update_downloading">Downloading… %d%%</string>
+    <string name="update_notes">What\'s new</string>
+    <string name="update_notes_title">What\'s new in %s</string>
+    <string name="update_failed">The update couldn\'t be downloaded. Try again later.</string>
+    <string name="update_permission_title">Allow installing</string>
+    <string name="update_permission_body">Android needs your permission for the app to install its own update. Turn on \"Allow from this source\", then come back and tap Update.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_none">You have the latest version.</string>
+    <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
+    <string name="version">Version %s</string>
+    <string name="close">Close</string>
 </resources>

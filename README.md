@@ -13,6 +13,8 @@ Sur le site, on bloque les profils un par un à la main. L'appli fait la même c
 - **Le compteur** du site est mis à jour à chaque blocage, comme quand vous bloquez depuis le site. Chaque compte affiche aussi combien de personnes l'ont déjà bloqué.
 - **La progression** est enregistrée : l'appli reprend là où elle s'est arrêtée et ne rouvre jamais un compte déjà traité.
 
+- **Les mises à jour** de l'appli sont cherchées à chaque ouverture dans les [releases GitHub](https://github.com/CuteTenshii/BlockExtremeDroiteAndroid/releases). Quand une version plus récente existe, une carte propose de la télécharger puis ouvre l'installeur d'Android. La première fois, Android demande d'autoriser l'appli à installer des applis.
+
 L'interface est en français, avec l'anglais si votre téléphone est en anglais. Les libellés de l'appli X sont reconnus en français et en anglais.
 
 ## Installation
@@ -28,10 +30,12 @@ Une barre s'affiche par-dessus X pendant le blocage. Son bouton « Arrêter » c
 
 ## Données envoyées
 
-L'appli contacte uniquement onbloquelextremedroite.fun :
+L'appli contacte onbloquelextremedroite.fun :
 
 - pour télécharger la liste et les compteurs ;
 - pour déclarer chaque blocage au compteur collectif, avec le compte bloqué et un identifiant aléatoire propre à l'appli, comme le fait le site.
+
+Elle contacte aussi GitHub, sans rien envoyer d'autre que sa version, pour savoir si une mise à jour existe et la télécharger.
 
 Rien d'autre ne sort du téléphone. Le service d'accessibilité ne lit que l'écran de l'appli X, et seulement pendant un blocage que vous avez lancé.
 
@@ -48,6 +52,8 @@ Pour une version signée, copiez `keystore.properties.example` en `keystore.prop
 ```
 
 L'APK se trouve dans `app/build/outputs/apk/release/`.
+
+Pour publier une version, augmentez `versionCode` et `versionName` dans `app/build.gradle.kts`, puis créez une release GitHub dont le tag vaut `v` + `versionName` (par exemple `v1.1`) et joignez-y l'APK signé avec la même clé. L'appli ne propose que les releases dont le numéro est plus grand que le sien.
 
 ## Si l'appli ne trouve plus les boutons
 

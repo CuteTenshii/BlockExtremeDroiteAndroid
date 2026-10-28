@@ -8,7 +8,9 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.format.DateUtils
 import android.view.View
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -19,6 +21,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import moe.tenshii.blockextremedroite.databinding.ActivityMainBinding
 import moe.tenshii.blockextremedroite.databinding.ItemCategoryChipBinding
+import java.io.File
 import java.text.NumberFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -29,13 +32,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progress: ProgressStore
     private lateinit var settings: SettingsStore
     private lateinit var counter: BlockCounter
+    private lateinit var updater: Updater
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val updateExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val adapter = AccountAdapter(::openProfile)
 
     private var accounts: List<Account> = emptyList()
     private var listLoadFailed = false
     private var refreshing = false
     private var counts: CounterSnapshot? = null
+    private var update: Release? = null
+    private var checkingUpdate = false
+    /** Download progress in percent, null when no download is running. */
+    private var updateProgress: Int? = null
     private var wasRunning = false
     private var xInstalled = true
     private val numbers = NumberFormat.getIntegerInstance()
@@ -61,6 +70,7 @@ class MainActivity : AppCompatActivity() {
         progress = ProgressStore(this)
         settings = SettingsStore(this)
         counter = BlockCounter.get(this)
+        updater = Updater(this)
 
         binding.accounts.adapter = adapter
         binding.accounts.itemAnimator = null
@@ -70,10 +80,16 @@ class MainActivity : AppCompatActivity() {
         binding.refreshList.setOnClickListener { refreshList() }
         binding.startStop.setOnClickListener { toggleRun() }
         binding.resetProgress.setOnClickListener { confirmReset() }
+        binding.updateInstall.setOnClickListener { startUpdate() }
+        binding.updateNotes.setOnClickListener { showUpdateNotes() }
+        binding.checkUpdate.setOnClickListener { checkForUpdate(manual = true) }
+        binding.version.text = getString(R.string.version, BuildConfig.VERSION_NAME)
         setUpPacing()
         loadList()
         loadCounts()
         counter.flush()
+        update = updater.available
+        checkForUpdate(manual = false)
     }
 
     override fun onStart() {
@@ -89,6 +105,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         executor.shutdownNow()
+        updateExecutor.shutdownNow()
         super.onDestroy()
     }
 
@@ -207,6 +224,8 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        renderUpdate()
+
         binding.xMissing.isVisible = !xInstalled
 
         binding.serviceStatus.setText(if (state.serviceConnected) R.string.service_on else R.string.service_off)
@@ -241,6 +260,24 @@ class MainActivity : AppCompatActivity() {
         val runText = runStatusText(state, rows.isEmpty(), pending)
         binding.runStatus.text = runText
         binding.runStatus.visibility = if (runText == null) View.GONE else View.VISIBLE
+    }
+
+    private fun renderUpdate() {
+        val release = update
+        val running = RunMonitor.state.running
+        val progress = updateProgress
+        binding.updateCard.isVisible = release != null
+        if (release != null) {
+            binding.updateTitle.text = getString(R.string.update_title, release.version)
+            binding.updateBody.text =
+                if (running) getString(R.string.update_body_running) else getString(R.string.update_body, BuildConfig.VERSION_NAME)
+            binding.updateInstall.text =
+                if (progress == null) getString(R.string.update_install) else getString(R.string.update_downloading, progress)
+            // Installing replaces the process, which would cut a blocking session short.
+            binding.updateInstall.isEnabled = progress == null && !running
+            binding.updateNotes.isVisible = release.notes.isNotBlank()
+        }
+        binding.checkUpdate.isEnabled = !checkingUpdate && progress == null
     }
 
     private fun runStatusText(state: RunState, noSelection: Boolean, pending: Int): String? = when {
@@ -279,6 +316,87 @@ class MainActivity : AppCompatActivity() {
             return
         }
         service.start(queue, settings.pacing)
+    }
+
+    private fun checkForUpdate(manual: Boolean) {
+        if (checkingUpdate) return
+        checkingUpdate = true
+        renderUpdate()
+        updateExecutor.execute {
+            val result = runCatching { updater.check() }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                checkingUpdate = false
+                result.onSuccess {
+                    update = it
+                    if (manual && it == null) snackbar(getString(R.string.update_none))
+                }.onFailure {
+                    if (manual) snackbar(getString(R.string.update_check_failed))
+                }
+                renderUpdate()
+            }
+        }
+    }
+
+    private fun startUpdate() {
+        val release = update ?: return
+        if (updateProgress != null || RunMonitor.state.running) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            askInstallPermission()
+            return
+        }
+        updateProgress = 0
+        renderUpdate()
+        updateExecutor.execute {
+            val result = runCatching {
+                updater.download(release) { percent ->
+                    runOnUiThread {
+                        if (isDestroyed || updateProgress == null) return@runOnUiThread
+                        updateProgress = percent
+                        renderUpdate()
+                    }
+                }
+            }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                updateProgress = null
+                result.onSuccess(::installUpdate).onFailure { snackbar(getString(R.string.update_failed)) }
+                renderUpdate()
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun askInstallPermission() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.update_permission_title)
+            .setMessage(R.string.update_permission_body)
+            .setPositiveButton(R.string.disclosure_open_settings) { _, _ ->
+                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.fromParts("package", packageName, null)))
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun installUpdate(apk: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.updates", apk)
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, APK_MIME_TYPE)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            snackbar(getString(R.string.update_failed))
+        }
+    }
+
+    private fun showUpdateNotes() {
+        val release = update ?: return
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.update_notes_title, release.version))
+            .setMessage(release.notes)
+            .setPositiveButton(R.string.close, null)
+            .show()
     }
 
     private fun showDisclosure() {
@@ -347,5 +465,6 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val COUNTS_RELOAD_DELAY_MS = 3_000L
+        const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
 }

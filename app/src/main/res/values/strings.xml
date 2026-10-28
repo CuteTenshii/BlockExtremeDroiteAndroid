@@ -112,4 +112,20 @@
     <string name="overlay_stop">Arrêter</string>
 
     <string name="accessibility_description">Ouvre dans l’appli X les profils listés sur onbloquelextremedroite.fun et appuie sur Bloquer à ta place. Agit uniquement dans X, et seulement quand tu lances un blocage depuis l’appli.</string>
+
+    <string name="update_title">Version %s disponible</string>
+    <string name="update_body">Tu as la version %s.</string>
+    <string name="update_body_running">Arrête ou termine le blocage en cours pour mettre à jour.</string>
+    <string name="update_install">Mettre à jour</string>
+    <string name="update_downloading">Téléchargement… %d %%</string>
+    <string name="update_notes">Nouveautés</string>
+    <string name="update_notes_title">Nouveautés de la version %s</string>
+    <string name="update_failed">La mise à jour n’a pas pu être téléchargée. Réessaie plus tard.</string>
+    <string name="update_permission_title">Autoriser l’installation</string>
+    <string name="update_permission_body">Android demande ton accord pour que l’appli installe sa propre mise à jour. Active « Autoriser cette source », puis reviens et touche Mettre à jour.</string>
+    <string name="update_check">Rechercher une mise à jour</string>
+    <string name="update_none">Tu as la dernière version.</string>
+    <string name="update_check_failed">Impossible de vérifier les mises à jour. Vérifie ta connexion.</string>
+    <string name="version">Version %s</string>
+    <string name="close">Fermer</string>
 </resources>
