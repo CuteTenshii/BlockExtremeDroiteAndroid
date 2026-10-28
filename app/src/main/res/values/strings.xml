@@ -92,6 +92,8 @@
     <string name="reset_body">Tous les comptes repassent à bloquer. Ceux déjà bloqués sur X le restent\u00A0: l’appli les reconnaîtra et passera au suivant.</string>
     <string name="reset_confirm">Réinitialiser</string>
 
+    <string name="accounts_open">Voir les comptes</string>
+    <string name="back">Retour</string>
     <string name="accounts_title">Comptes</string>
     <string name="accounts_hint">Touche un compte pour ouvrir son profil dans X.</string>
     <string name="accounts_empty">Aucun compte dans ta sélection.</string>

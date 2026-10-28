@@ -84,6 +84,8 @@
     <string name="reset_body">Every account goes back to \"to block\". Accounts already blocked on X stay blocked: the app will recognise them and move on.</string>
     <string name="reset_confirm">Reset</string>
 
+    <string name="accounts_open">View accounts</string>
+    <string name="back">Back</string>
     <string name="accounts_title">Accounts</string>
     <string name="accounts_hint">Tap an account to open its profile in X.</string>
     <string name="accounts_empty">No accounts in your selection.</string>

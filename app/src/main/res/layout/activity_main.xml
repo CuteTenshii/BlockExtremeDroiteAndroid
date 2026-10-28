@@ -434,40 +434,13 @@
             android:visibility="gone"
             tools:visibility="visible" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/accounts_title"
-            android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:textColor="?attr/colorOnSurface" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="@string/accounts_hint"
-            android:textAppearance="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
-
-        <TextView
-            android:id="@+id/accountsEmpty"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/viewAccounts"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/accounts_empty"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:visibility="gone" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/accounts"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:nestedScrollingEnabled="false"
-            tools:itemCount="4"
-            tools:listitem="@layout/item_account" />
+            android:text="@string/accounts_open" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/resetProgress"

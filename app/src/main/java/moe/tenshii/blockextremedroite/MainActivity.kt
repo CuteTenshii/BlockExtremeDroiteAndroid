@@ -37,7 +37,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updater: Updater
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val updateExecutor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val adapter = AccountAdapter(::openProfile)
 
     private var accounts: List<Account> = emptyList()
     private var listLoadFailed = false
@@ -74,8 +73,7 @@ class MainActivity : AppCompatActivity() {
         counter = BlockCounter.get(this)
         updater = Updater(this)
 
-        binding.accounts.adapter = adapter
-        binding.accounts.itemAnimator = null
+        binding.viewAccounts.setOnClickListener { startActivity(Intent(this, AccountsActivity::class.java)) }
         binding.enableService.setOnClickListener { showDisclosure() }
         binding.installX.setOnClickListener { openXStorePage() }
         binding.openRepository.setOnClickListener { openRepository() }
@@ -249,11 +247,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun selectedAccounts(): List<Account> {
-        val excludedSources = settings.excludedSources
-        val excludedCategories = settings.excludedCategories
-        return accounts.filter { it.source !in excludedSources && it.category !in excludedCategories }
-    }
+    private fun selectedAccounts(): List<Account> = settings.select(accounts)
 
     private fun render() {
         val state = RunMonitor.state
@@ -290,18 +284,17 @@ class MainActivity : AppCompatActivity() {
         binding.capSlider.isEnabled = !state.running
         binding.resetProgress.isEnabled = !state.running
 
-        val rows = selectedAccounts().map { AccountRow(it, progress.status(it), snapshot?.perAccount?.get(it.siteId)) }
-        adapter.submitList(rows)
-        binding.accountsEmpty.isVisible = accounts.isNotEmpty() && rows.isEmpty()
-        val pending = rows.count { !it.status.isDone }
-        val blocked = rows.count { it.status == BlockStatus.BLOCKED || it.status == BlockStatus.ALREADY_BLOCKED }
-        val unavailable = rows.count { it.status == BlockStatus.UNAVAILABLE }
+        val statuses = selectedAccounts().map(progress::status)
+        binding.viewAccounts.isEnabled = accounts.isNotEmpty()
+        val pending = statuses.count { !it.isDone }
+        val blocked = statuses.count { it == BlockStatus.BLOCKED || it == BlockStatus.ALREADY_BLOCKED }
+        val unavailable = statuses.count { it == BlockStatus.UNAVAILABLE }
         binding.summary.text = getString(R.string.summary, pending, blocked, unavailable)
 
         binding.startStop.setText(if (state.running) R.string.stop else R.string.start)
         binding.startStop.isEnabled = state.running || (xInstalled && state.serviceConnected && pending > 0)
 
-        val runText = runStatusText(state, rows.isEmpty(), pending)
+        val runText = runStatusText(state, statuses.isEmpty(), pending)
         binding.runStatus.text = runText
         binding.runStatus.visibility = if (runText == null) View.GONE else View.VISIBLE
     }
@@ -492,15 +485,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=${BlockService.X_PACKAGE}".toUri()))
         } catch (_: ActivityNotFoundException) {
             startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${BlockService.X_PACKAGE}".toUri()))
-        }
-    }
-
-    private fun openProfile(account: Account) {
-        val uri = "https://x.com/${account.handle}".toUri()
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(BlockService.X_PACKAGE))
-        } catch (_: ActivityNotFoundException) {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
         }
     }
 

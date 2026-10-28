@@ -54,6 +54,13 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet(KEY_EXCLUDED, emptySet()).orEmpty().toSet()
         set(value) = prefs.edit { putStringSet(KEY_EXCLUDED, value) }
 
+    /** The accounts left once the excluded sources and categories are filtered out. */
+    fun select(accounts: List<Account>): List<Account> {
+        val sources = excludedSources
+        val categories = excludedCategories
+        return accounts.filter { it.source !in sources && it.category !in categories }
+    }
+
     var excludedSources: Set<AccountSource>
         get() = prefs.getStringSet(KEY_EXCLUDED_SOURCES, emptySet()).orEmpty()
             .mapNotNull { name -> AccountSource.entries.firstOrNull { it.name == name } }.toSet()

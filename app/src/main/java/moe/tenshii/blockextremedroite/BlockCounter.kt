@@ -36,6 +36,11 @@ class BlockCounter private constructor(context: Context) {
             prefs.edit { putString(KEY_DEVICE, id) }
         }
 
+    /** The last snapshot fetched by any screen, so another one can show counts without fetching again. */
+    @Volatile
+    var latest: CounterSnapshot? = null
+        private set
+
     @WorkerThread
     @Throws(IOException::class, IllegalArgumentException::class)
     fun fetch(): CounterSnapshot {
@@ -43,7 +48,7 @@ class BlockCounter private constructor(context: Context) {
         val perAccount = response.counts.mapNotNull { (key, count) ->
             key.removePrefix(X_PREFIX).takeIf { it.length < key.length }?.let { it to count }
         }.toMap()
-        return CounterSnapshot(response.total, perAccount)
+        return CounterSnapshot(response.total, perAccount).also { latest = it }
     }
 
     fun report(account: Account) {
