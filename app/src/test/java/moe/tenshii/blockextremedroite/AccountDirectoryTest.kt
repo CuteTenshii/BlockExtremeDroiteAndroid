@@ -7,8 +7,12 @@ import org.junit.Test
 
 class AccountDirectoryTest {
 
-    private fun sources(accounts: String, directory: String = """{"entries":[]}""", portraits: String? = null) =
-        DirectorySources(accounts, directory, portraits)
+    private fun sources(
+        accounts: String,
+        directory: String = """{"entries":[]}""",
+        portraits: String? = null,
+        followers: String? = null,
+    ) = DirectorySources(accounts, directory, portraits, followers)
 
     @Test
     fun mergesCuratedAndDirectory() {
@@ -30,12 +34,18 @@ class AccountDirectoryTest {
                     ], "frozen": true}
                 """.trimIndent(),
                 portraits = """const portraits = {"alpha": {"url": "https://example.org/a.jpg"}, "u1": {"url": "http://example.org/d.jpg"}};""",
+                followers = """
+                    // Relevés partiels ; sources : exemple.
+                    const followerCounts = {"x:/bravo": {"count": 1200, "date": "2026-10-28"}, "instagram:/alpha": {"count": 5}};
+                """.trimIndent(),
             ),
         )
         assertEquals(listOf("Alpha", "bravo", "charlie", "delta"), accounts.map { it.handle })
         assertEquals(listOf("alpha", "pa1", "charlie", "u1"), accounts.map { it.siteId })
         // Portraits are keyed like the site's records, and only HTTPS photos are kept.
         assertEquals(listOf("https://example.org/a.jpg", null, null, null), accounts.map { it.portraitUrl })
+        // Follower counts are keyed by network and lowercase handle.
+        assertEquals(listOf(null, 1200L, null, null), accounts.map { it.followers })
         // A community link update keeps a curated account curated.
         assertEquals(
             listOf(AccountSource.CURATED, AccountSource.CURATED, AccountSource.CURATED, AccountSource.COMMUNITY),

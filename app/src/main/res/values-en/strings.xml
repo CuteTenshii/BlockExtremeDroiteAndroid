@@ -88,11 +88,26 @@
     <string name="back">Back</string>
     <string name="accounts_title">Accounts</string>
     <string name="accounts_hint">Tap an account to open its profile in X.</string>
+    <string name="accounts_credits">Photos and follower counts come from the site, which credits its sources: Assemblée nationale, Wikimedia Commons, Le Podium 2027 (CC BY 4.0) and Saper Vedere. Follower counts are partial, dated surveys.</string>
+    <string name="accounts_filtered_empty">No accounts match these filters.</string>
+    <string name="filter_category">Category</string>
+    <string name="filter_category_all">All categories</string>
+    <string name="filter_any">Any</string>
+    <string name="filter_followers">Followers</string>
+    <string name="filter_followers_min">%s+ followers</string>
+    <string name="filter_blocks">Blocks</string>
+    <string name="filter_blocks_min">%s+ blocks</string>
+    <string name="sort_site">Sort: site order</string>
+    <string name="sort_blocks">Sort: most blocked</string>
+    <string name="sort_followers">Sort: most followed</string>
     <string name="accounts_empty">No accounts in your selection.</string>
-    <string name="account_meta">\@%1$s · %2$s</string>
-    <plurals name="account_meta_count">
-        <item quantity="one">\@%1$s · %2$s · %3$s block</item>
-        <item quantity="other">\@%1$s · %2$s · %3$s blocks</item>
+    <plurals name="account_followers">
+        <item quantity="one">%s follower</item>
+        <item quantity="other">%s followers</item>
+    </plurals>
+    <plurals name="account_blocks">
+        <item quantity="one">%s block</item>
+        <item quantity="other">%s blocks</item>
     </plurals>
     <string name="status_pending">To block</string>
     <string name="status_blocked">Blocked</string>

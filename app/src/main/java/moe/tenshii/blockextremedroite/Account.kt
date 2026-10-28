@@ -22,6 +22,8 @@ data class Account(
     val source: AccountSource,
     /** The site's hand-picked photo (`portraits.js`), null for accounts it has none for. */
     val portraitUrl: String?,
+    /** X followers from the site's dated, partial `followers.js` survey; null when it has no figure. */
+    val followers: Long?,
 ) {
     /** X handles are case-insensitive, so progress is keyed on the lowercase form. */
     val key: String
@@ -34,10 +36,15 @@ data class Account(
 }
 
 /**
- * The site's curated `accounts.js` (absent from the API), the `/api/accounts` community directory, and
- * `portraits.js`, which is null when it couldn't be fetched since photos are optional.
+ * The site's curated `accounts.js` (absent from the API), the `/api/accounts` community directory, and the
+ * optional `portraits.js` and `followers.js`, null when they couldn't be fetched.
  */
-class DirectorySources(val accountsScript: String, val directoryJson: String, val portraitsScript: String? = null)
+class DirectorySources(
+    val accountsScript: String,
+    val directoryJson: String,
+    val portraitsScript: String? = null,
+    val followersScript: String? = null,
+)
 
 @InternalSerializationApi @Serializable
 private data class CuratedAccount(
@@ -50,6 +57,9 @@ private data class CuratedAccount(
 
 @InternalSerializationApi @Serializable
 private data class Portrait(val url: String = "")
+
+@InternalSerializationApi @Serializable
+private data class FollowerCount(val count: Long? = null)
 
 @InternalSerializationApi @Serializable
 private data class Directory(
@@ -88,6 +98,9 @@ object AccountDirectory {
         val curated = json.decodeFromString<List<CuratedAccount>>(literal(sources.accountsScript, '[', ']'))
         val portraits = sources.portraitsScript
             ?.let { script -> runCatching { json.decodeFromString<Map<String, Portrait>>(literal(script, '{', '}')) }.getOrNull() }
+            .orEmpty()
+        val followers = sources.followersScript
+            ?.let { script -> runCatching { json.decodeFromString<Map<String, FollowerCount>>(literal(script, '{', '}')) }.getOrNull() }
             .orEmpty()
         val directory = json.decodeFromString<Directory>(sources.directoryJson)
         require(!directory.stale) { "Directory snapshot is stale" }
@@ -129,6 +142,7 @@ object AccountDirectory {
             val account = Account(
                 key, handle, record.name.trim().ifEmpty { handle }, record.category.trim(), record.reason.trim(), record.source,
                 portraitUrl = portraits[key]?.url?.trim()?.takeIf { it.startsWith("https://") },
+                followers = followers["x:/" + handle.lowercase(Locale.ROOT)]?.count?.takeIf { it >= 0 },
             )
             if (key in removed) removedHandles += account.key
             byHandle.putIfAbsent(account.key, account)

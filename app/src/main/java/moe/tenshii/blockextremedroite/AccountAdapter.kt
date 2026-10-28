@@ -1,5 +1,6 @@
 package moe.tenshii.blockextremedroite
 
+import android.icu.text.CompactDecimalFormat
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.annotation.AttrRes
@@ -19,6 +20,7 @@ class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: 
     ListAdapter<AccountRow, AccountAdapter.Holder>(Diff) {
 
     private val numbers = NumberFormat.getIntegerInstance()
+    private val compactNumbers = CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT)
 
     class Holder(val binding: ItemAccountBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -33,14 +35,16 @@ class AccountAdapter(private val portraits: PortraitLoader, private val onOpen: 
             accountInitials.text = account.name.split(Regex("\\s+")).filter { it.isNotEmpty() }.take(2)
                 .joinToString("") { it.take(1) }.uppercase(Locale.getDefault())
             portraits.load(accountPortrait, account.avatarUrl, context.resources.getDimensionPixelSize(R.dimen.avatar_size))
-            accountMeta.text = if (blockCount == null) {
-                context.getString(R.string.account_meta, account.handle, account.category)
-            } else {
-                context.resources.getQuantityString(
-                    R.plurals.account_meta_count, pluralQuantity(blockCount),
-                    account.handle, account.category, numbers.format(blockCount),
-                )
-            }
+            accountMeta.text = listOfNotNull(
+                "@" + account.handle,
+                account.category,
+                account.followers?.let {
+                    context.resources.getQuantityString(R.plurals.account_followers, pluralQuantity(it), compactNumbers.format(it))
+                },
+                blockCount?.let {
+                    context.resources.getQuantityString(R.plurals.account_blocks, pluralQuantity(it), numbers.format(it))
+                },
+            ).joinToString(" · ")
             accountStatus.setText(status.label)
             accountStatus.setTextColor(
                 if (status == BlockStatus.BLOCKED || status == BlockStatus.ALREADY_BLOCKED) {

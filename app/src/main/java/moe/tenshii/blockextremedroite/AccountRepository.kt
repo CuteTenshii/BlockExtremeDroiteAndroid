@@ -35,6 +35,7 @@ class AccountRepository(context: Context) {
                 accountsScript = Http.get("$SITE/accounts.js"),
                 directoryJson = Http.get("$SITE/api/accounts"),
                 portraitsScript = runCatching { Http.get("$SITE/portraits.js") }.getOrNull(),
+                followersScript = runCatching { Http.get("$SITE/followers.js") }.getOrNull(),
             ),
         )
         val temp = File(appContext.filesDir, "$LIST_FILE.tmp")

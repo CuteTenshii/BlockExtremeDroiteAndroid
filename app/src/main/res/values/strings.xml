@@ -96,12 +96,28 @@
     <string name="back">Retour</string>
     <string name="accounts_title">Comptes</string>
     <string name="accounts_hint">Touche un compte pour ouvrir son profil dans X.</string>
+    <string name="accounts_credits">Photos et abonnés repris du site, qui cite ses sources\u00A0: Assemblée nationale, Wikimedia Commons, Le Podium 2027 (CC BY 4.0) et Saper Vedere. Les abonnés sont des relevés partiels et datés.</string>
+    <string name="accounts_filtered_empty">Aucun compte ne correspond à ces filtres.</string>
+    <string name="filter_category">Catégorie</string>
+    <string name="filter_category_all">Toutes les catégories</string>
+    <string name="filter_any">Tous</string>
+    <string name="filter_followers">Abonnés</string>
+    <string name="filter_followers_min">%s+ abonnés</string>
+    <string name="filter_blocks">Blocages</string>
+    <string name="filter_blocks_min">%s+ blocages</string>
+    <string name="sort_site">Tri\u00A0: ordre du site</string>
+    <string name="sort_blocks">Tri\u00A0: plus bloqués</string>
+    <string name="sort_followers">Tri\u00A0: plus suivis</string>
     <string name="accounts_empty">Aucun compte dans ta sélection.</string>
-    <string name="account_meta">\@%1$s · %2$s</string>
-    <plurals name="account_meta_count">
-        <item quantity="one">\@%1$s · %2$s · %3$s blocage</item>
-        <item quantity="many">\@%1$s · %2$s · %3$s blocages</item>
-        <item quantity="other">\@%1$s · %2$s · %3$s blocages</item>
+    <plurals name="account_followers">
+        <item quantity="one">%s abonné</item>
+        <item quantity="many">%s abonnés</item>
+        <item quantity="other">%s abonnés</item>
+    </plurals>
+    <plurals name="account_blocks">
+        <item quantity="one">%s blocage</item>
+        <item quantity="many">%s blocages</item>
+        <item quantity="other">%s blocages</item>
     </plurals>
     <string name="status_pending">À bloquer</string>
     <string name="status_blocked">Bloqué</string>
