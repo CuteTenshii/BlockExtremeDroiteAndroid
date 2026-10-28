@@ -171,7 +171,7 @@ class MainActivity : AppCompatActivity() {
                 refreshing = false
                 result.onSuccess { accounts = it }
                 listLoadFailed = result.isFailure
-                buildCategoryChips()
+                buildFilterChips()
                 render()
             }
         }
@@ -200,7 +200,7 @@ class MainActivity : AppCompatActivity() {
                 result.onSuccess {
                     accounts = it
                     listLoadFailed = false
-                    buildCategoryChips()
+                    buildFilterChips()
                     snackbar(resources.getQuantityString(R.plurals.list_refresh_done, it.size, it.size))
                 }.onFailure {
                     snackbar(getString(R.string.list_refresh_failed))
@@ -210,9 +210,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildCategoryChips() {
+    /** Category counts follow the selected sources, so the source chips are built first. */
+    private fun buildFilterChips() {
+        val excludedSources = settings.excludedSources
+        val sourceCounts = accounts.groupingBy { it.source }.eachCount()
+        binding.sources.removeAllViews()
+        for (source in AccountSource.entries) {
+            val count = sourceCounts[source] ?: continue
+            val label = getString(if (source == AccountSource.CURATED) R.string.source_curated else R.string.source_community)
+            val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.sources, false).root.apply {
+                text = getString(R.string.category_chip, label, count)
+                isChecked = source !in excludedSources
+                setOnCheckedChangeListener { _, checked ->
+                    settings.excludedSources =
+                        if (checked) settings.excludedSources - source else settings.excludedSources + source
+                    buildFilterChips()
+                    render()
+                }
+            }
+            binding.sources.addView(chip)
+        }
+
         val excluded = settings.excludedCategories
-        val counts = accounts.groupingBy { it.category }.eachCount().entries.sortedByDescending { it.value }
+        val counts = accounts.filter { it.source !in excludedSources }
+            .groupingBy { it.category }.eachCount().entries.sortedByDescending { it.value }
         binding.categories.removeAllViews()
         for ((category, count) in counts) {
             val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.categories, false).root.apply {
@@ -229,8 +250,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectedAccounts(): List<Account> {
-        val excluded = settings.excludedCategories
-        return accounts.filter { it.category !in excluded }
+        val excludedSources = settings.excludedSources
+        val excludedCategories = settings.excludedCategories
+        return accounts.filter { it.source !in excludedSources && it.category !in excludedCategories }
     }
 
     private fun render() {
@@ -261,7 +283,9 @@ class MainActivity : AppCompatActivity() {
         }
         binding.refreshList.isEnabled = !refreshing && !state.running
         binding.refreshList.setText(if (refreshing) R.string.list_refreshing else R.string.list_refresh)
-        for (i in 0 until binding.categories.childCount) binding.categories.getChildAt(i).isEnabled = !state.running
+        for (group in listOf(binding.sources, binding.categories)) {
+            for (i in 0 until group.childCount) group.getChildAt(i).isEnabled = !state.running
+        }
         binding.delaySlider.isEnabled = !state.running
         binding.capSlider.isEnabled = !state.running
         binding.resetProgress.isEnabled = !state.running
@@ -315,7 +339,8 @@ class MainActivity : AppCompatActivity() {
             StopReason.SERVICE_DISCONNECTED -> getString(R.string.stop_service)
         }
         accounts.isEmpty() -> null
-        settings.excludedCategories.isNotEmpty() && noSelection -> getString(R.string.no_category)
+        (settings.excludedSources.isNotEmpty() || settings.excludedCategories.isNotEmpty()) && noSelection ->
+            getString(R.string.no_category)
         pending == 0 -> getString(R.string.nothing_to_block)
         else -> null
     }

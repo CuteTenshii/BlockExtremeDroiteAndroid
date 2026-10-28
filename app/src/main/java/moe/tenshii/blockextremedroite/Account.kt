@@ -7,6 +7,9 @@ import kotlinx.serialization.json.Json
 import java.net.URI
 import java.util.Locale
 
+/** Where the site lists an account: its team-verified `accounts.js`, or a community submission. */
+enum class AccountSource { CURATED, COMMUNITY }
+
 @Serializable
 data class Account(
     /** The site's record key (`id`, else the handle, lowercased), used by its block counter. */
@@ -15,6 +18,7 @@ data class Account(
     val name: String,
     val category: String,
     val reason: String,
+    val source: AccountSource,
 ) {
     /** X handles are case-insensitive, so progress is keyed on the lowercase form. */
     val key: String
@@ -59,7 +63,7 @@ object AccountDirectory {
     private val KNOWN_CATEGORIES = setOf("RN", "Reconquête", "Politiques", "Partis & mouvements", "Médias", "Influenceurs", "Groupes", "Autres")
     private const val FALLBACK_CATEGORY = "Autres"
 
-    private class Record(val name: String, val category: String, val reason: String, var xLink: String?)
+    private class Record(val name: String, val category: String, val reason: String, val source: AccountSource, var xLink: String?)
 
     /**
      * Rebuilds the site's X list: curated accounts, then directory additions and link updates.
@@ -76,7 +80,7 @@ object AccountDirectory {
             val key = account.id.ifEmpty { account.handle }.lowercase(Locale.ROOT)
             if (key.isEmpty() || key in records) continue
             val xLink = account.handle.takeIf { it.isNotBlank() }?.let { "https://x.com/${it.trim()}" }
-            records[key] = Record(account.name, account.category, account.reason, xLink)
+            records[key] = Record(account.name, account.category, account.reason, AccountSource.CURATED, xLink)
         }
 
         val removed = HashSet<String>()
@@ -92,6 +96,7 @@ object AccountDirectory {
                     name = entry.name,
                     category = entry.category.takeIf { it in KNOWN_CATEGORIES } ?: FALLBACK_CATEGORY,
                     reason = entry.reason,
+                    source = AccountSource.COMMUNITY,
                     xLink = null,
                 ).also { records[key] = it }
             } else {
@@ -104,7 +109,9 @@ object AccountDirectory {
         val removedHandles = HashSet<String>()
         for ((key, record) in records) {
             val handle = record.xLink?.let(::handleFromLink) ?: continue
-            val account = Account(key, handle, record.name.trim().ifEmpty { handle }, record.category.trim(), record.reason.trim())
+            val account = Account(
+                key, handle, record.name.trim().ifEmpty { handle }, record.category.trim(), record.reason.trim(), record.source,
+            )
             if (key in removed) removedHandles += account.key
             byHandle.putIfAbsent(account.key, account)
         }

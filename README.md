@@ -24,7 +24,7 @@ Il vous faut Android 7.0 ou plus récent, et l'appli X installée avec votre com
 1. Téléchargez l'APK depuis les [releases](https://github.com/CuteTenshii/BlockExtremeDroiteAndroid/releases) et installez-le.
 2. Ouvrez l'appli et appuyez sur « Activer » pour ouvrir les réglages d'accessibilité, puis activez le service « Block Extreme Droite ».
 3. Sur Android 13 et plus, l'interrupteur est grisé pour les applis installées hors Play Store. Allez dans Infos de l'appli, menu ⋮, « Autoriser les paramètres restreints », puis revenez activer le service.
-4. Choisissez les catégories, réglez le rythme et appuyez sur « Lancer le blocage ».
+4. Choisissez les sources (comptes vérifiés par l'équipe, propositions de la communauté) et les catégories, réglez le rythme et appuyez sur « Lancer le blocage ».
 
 Une barre s'affiche par-dessus X pendant le blocage. Son bouton « Arrêter » coupe tout immédiatement.
 

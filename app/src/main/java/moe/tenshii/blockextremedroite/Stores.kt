@@ -54,6 +54,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet(KEY_EXCLUDED, emptySet()).orEmpty().toSet()
         set(value) = prefs.edit { putStringSet(KEY_EXCLUDED, value) }
 
+    var excludedSources: Set<AccountSource>
+        get() = prefs.getStringSet(KEY_EXCLUDED_SOURCES, emptySet()).orEmpty()
+            .mapNotNull { name -> AccountSource.entries.firstOrNull { it.name == name } }.toSet()
+        set(value) = prefs.edit { putStringSet(KEY_EXCLUDED_SOURCES, value.map { it.name }.toSet()) }
+
     var listExpanded: Boolean
         get() = prefs.getBoolean(KEY_LIST_EXPANDED, true)
         set(value) = prefs.edit { putBoolean(KEY_LIST_EXPANDED, value) }
@@ -77,6 +82,7 @@ class SettingsStore(context: Context) {
         private const val KEY_DELAY_MAX = "delay_max"
         private const val KEY_CAP = "session_cap"
         private const val KEY_EXCLUDED = "excluded_categories"
+        private const val KEY_EXCLUDED_SOURCES = "excluded_sources"
         private const val KEY_LIST_EXPANDED = "list_expanded"
         private const val KEY_PACING_EXPANDED = "pacing_expanded"
     }

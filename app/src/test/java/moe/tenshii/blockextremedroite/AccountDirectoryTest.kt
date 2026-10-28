@@ -33,6 +33,11 @@ class AccountDirectoryTest {
         )
         assertEquals(listOf("Alpha", "bravo", "charlie", "delta"), accounts.map { it.handle })
         assertEquals(listOf("alpha", "pa1", "charlie", "u1"), accounts.map { it.siteId })
+        // A community link update keeps a curated account curated.
+        assertEquals(
+            listOf(AccountSource.CURATED, AccountSource.CURATED, AccountSource.CURATED, AccountSource.COMMUNITY),
+            accounts.map { it.source },
+        )
         assertEquals("Autres", accounts.last().category)
     }
 

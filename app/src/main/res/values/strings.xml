@@ -41,9 +41,12 @@
         <item quantity="many">%s blocages déclarés ensemble</item>
         <item quantity="other">%s blocages déclarés ensemble</item>
     </plurals>
+    <string name="sources_title">Sources</string>
+    <string name="source_curated">Vérifiés par l’équipe</string>
+    <string name="source_community">Proposés par la communauté</string>
     <string name="categories_title">Catégories</string>
     <string name="category_chip">%1$s · %2$d</string>
-    <string name="no_category">Choisis au moins une catégorie.</string>
+    <string name="no_category">Choisis au moins une source et une catégorie.</string>
 
     <string name="pacing_title">Rythme</string>
     <string name="pacing_no_pause">Pause entre deux blocages\u00A0: aucune</string>
@@ -56,7 +59,7 @@
     <string name="summary">À bloquer\u00A0: %1$d · Bloqués\u00A0: %2$d · Introuvables\u00A0: %3$d</string>
     <string name="start">Lancer le blocage</string>
     <string name="stop">Arrêter</string>
-    <string name="nothing_to_block">Rien à bloquer dans les catégories choisies.</string>
+    <string name="nothing_to_block">Rien à bloquer dans ta sélection.</string>
     <string name="run_starting">Ouverture de X…</string>
     <plurals name="run_running_unlimited">
         <item quantity="one">En cours\u00A0: @%1$s · %2$d bloqué</item>
@@ -68,7 +71,7 @@
         <item quantity="many">En cours\u00A0: @%1$s · %2$d bloqués sur %3$d</item>
         <item quantity="other">En cours\u00A0: @%1$s · %2$d bloqués sur %3$d</item>
     </plurals>
-    <string name="stop_finished">Terminé\u00A0: plus rien à bloquer dans ces catégories.</string>
+    <string name="stop_finished">Terminé\u00A0: plus rien à bloquer dans ta sélection.</string>
     <plurals name="stop_cap">
         <item quantity="one">Session terminée\u00A0: %d compte bloqué. Relance plus tard pour continuer.</item>
         <item quantity="many">Session terminée\u00A0: %d comptes bloqués. Relance plus tard pour continuer.</item>
@@ -91,7 +94,7 @@
 
     <string name="accounts_title">Comptes</string>
     <string name="accounts_hint">Touche un compte pour ouvrir son profil dans X.</string>
-    <string name="accounts_empty">Aucun compte dans les catégories choisies.</string>
+    <string name="accounts_empty">Aucun compte dans ta sélection.</string>
     <string name="account_meta">\@%1$s · %2$s</string>
     <plurals name="account_meta_count">
         <item quantity="one">\@%1$s · %2$s · %3$s blocage</item>

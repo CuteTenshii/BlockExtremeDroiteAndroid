@@ -37,9 +37,12 @@
         <item quantity="one">%s block reported together</item>
         <item quantity="other">%s blocks reported together</item>
     </plurals>
+    <string name="sources_title">Sources</string>
+    <string name="source_curated">Verified by the team</string>
+    <string name="source_community">Submitted by the community</string>
     <string name="categories_title">Categories</string>
     <string name="category_chip">%1$s · %2$d</string>
-    <string name="no_category">Pick at least one category.</string>
+    <string name="no_category">Pick at least one source and one category.</string>
 
     <string name="pacing_title">Pace</string>
     <string name="pacing_no_pause">Pause between blocks: none</string>
@@ -52,7 +55,7 @@
     <string name="summary">To block: %1$d · Blocked: %2$d · Not found: %3$d</string>
     <string name="start">Start blocking</string>
     <string name="stop">Stop</string>
-    <string name="nothing_to_block">Nothing left to block in the selected categories.</string>
+    <string name="nothing_to_block">Nothing left to block in your selection.</string>
     <string name="run_starting">Opening X…</string>
     <plurals name="run_running_unlimited">
         <item quantity="one">Running: @%1$s · %2$d blocked</item>
@@ -62,7 +65,7 @@
         <item quantity="one">Running: @%1$s · %2$d of %3$d blocked</item>
         <item quantity="other">Running: @%1$s · %2$d of %3$d blocked</item>
     </plurals>
-    <string name="stop_finished">Done: nothing left to block in these categories.</string>
+    <string name="stop_finished">Done: nothing left to block in your selection.</string>
     <plurals name="stop_cap">
         <item quantity="one">Session over: %d account blocked. Start again later to continue.</item>
         <item quantity="other">Session over: %d accounts blocked. Start again later to continue.</item>
@@ -83,7 +86,7 @@
 
     <string name="accounts_title">Accounts</string>
     <string name="accounts_hint">Tap an account to open its profile in X.</string>
-    <string name="accounts_empty">No accounts in the selected categories.</string>
+    <string name="accounts_empty">No accounts in your selection.</string>
     <string name="account_meta">\@%1$s · %2$s</string>
     <plurals name="account_meta_count">
         <item quantity="one">\@%1$s · %2$s · %3$s block</item>
