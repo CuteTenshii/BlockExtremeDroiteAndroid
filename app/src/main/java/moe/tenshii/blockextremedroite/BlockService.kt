@@ -105,7 +105,7 @@ class BlockService : AccessibilityService() {
 
     /** Accounts without a profile on [platform] are skipped; an empty queue still starts when the deck can fill it. */
     fun start(platform: Platform, accounts: List<Account>, pacing: Pacing) {
-        val queue = accounts.filter { platform in it.profiles }
+        val queue = accounts.filter { platform in it.profiles }.tokensFirst(platform)
         val category = settings.deckCategory
         val canRefill = repository.canFetch(platform, category)
         if (session != null || (queue.isEmpty() && !canRefill)) return
@@ -159,8 +159,9 @@ class BlockService : AccessibilityService() {
     private fun openNext(session: Session, now: Long) {
         if (session.capReached) return stop(StopReason.CAP_REACHED)
         refill(session)
-        val account = session.queue.removeFirstOrNull()
-            ?: return if (session.refilling) Unit else stop(StopReason.FINISHED)
+        // Profiles without a token wait while a batch may still bring theirs, so their block can be counted.
+        if (session.refilling && session.queue.firstOrNull()?.let { session.platform in it.cardTokens } != true) return
+        val account = session.queue.removeFirstOrNull() ?: return stop(StopReason.FINISHED)
         val platform = session.platform
         // A fresh task guarantees the previous profile is gone before the next one is inspected.
         val intent = Intent(Intent.ACTION_VIEW, platform.appLink(account.profiles.getValue(platform)).toUri())
@@ -268,9 +269,13 @@ class BlockService : AccessibilityService() {
         }
     }
 
-    /** Asks the deck for its next batch once few profiles are left, like the site's page; the run waits for it if needed. */
+    /**
+     * Asks the deck for its next batch once few profiles with a card token are left, like the site's page; the run
+     * waits for it if needed. A batch brings new profiles and tokens for held ones, which then move up the queue.
+     */
     private fun refill(session: Session) {
-        if (session.refilling || !session.canRefill || session.queue.size > REFILL_THRESHOLD) return
+        if (session.refilling || !session.canRefill) return
+        if (session.queue.count { session.platform in it.cardTokens } > REFILL_THRESHOLD) return
         session.refilling = true
         fetcher.execute {
             val result = runCatching { repository.fetchBatch(session.platform, session.category) }
@@ -278,12 +283,17 @@ class BlockService : AccessibilityService() {
                 if (this.session !== session) return@post
                 session.refilling = false
                 result.onSuccess { batch ->
+                    val latest = batch.accounts.associateBy { it.siteId }
                     val fresh = settings.select(batch.added, session.platform).filter { account ->
                         !progress.status(account.profiles.getValue(session.platform)).isDone && session.queued.add(account.siteId)
                     }
-                    session.queue += fresh
+                    val queued = session.queue.map { latest[it.siteId] ?: it } + fresh
+                    session.queue.clear()
+                    session.queue += queued.tokensFirst(session.platform)
+                    session.current = session.current?.let { latest[it.siteId] ?: it }
+                    val tokenedForRun = batch.tokened.any { it.siteId in session.queued }
                     // A batch with nothing for this run (only unselected categories) must not chain into the next one.
-                    if (batch.quotaReached || batch.exhausted || fresh.isEmpty()) session.canRefill = false
+                    if (batch.quotaReached || batch.exhausted || (fresh.isEmpty() && !tokenedForRun)) session.canRefill = false
                 }.onFailure {
                     // A failed batch would fail again on the next profile; the run ends with what it holds.
                     session.canRefill = false

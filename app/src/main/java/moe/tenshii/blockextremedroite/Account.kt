@@ -60,6 +60,9 @@ data class Account(
     fun label(platform: Platform): String = profiles[platform]?.handle?.let { "@$it" } ?: name
 }
 
+/** The order a run blocks in: profiles whose block can be counted first, as a report without a card token is ignored. */
+fun List<Account>.tokensFirst(platform: Platform): List<Account> = sortedBy { platform !in it.cardTokens }
+
 /**
  * One `/api/deck` answer: the cards for the asked platform, the site's totals per platform keyed by category
  * ([SiteCategory.key], or `all`), and the daily quota flag.

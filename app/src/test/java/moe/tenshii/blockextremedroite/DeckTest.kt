@@ -104,6 +104,27 @@ class DeckTest {
     }
 
     @Test
+    fun runsBlockProfilesWithATokenFirst() {
+        val accounts = Deck.merge(
+            emptyList(),
+            Platform.X,
+            cards(
+                """
+                    [
+                      {"id": "a", "name": "A", "aliases": ["a"], "links": {"x": "https://x.com/alpha"}},
+                      {"id": "b", "name": "B", "aliases": ["b"], "links": {"x": "https://x.com/bravo"}, "t": "tok-b"},
+                      {"id": "c", "name": "C", "aliases": ["c"], "links": {"x": "https://x.com/charlie"}},
+                      {"id": "d", "name": "D", "aliases": ["d"], "links": {"x": "https://x.com/delta"}, "t": "tok-d"}
+                    ]
+                """.trimIndent(),
+            ),
+        )
+        // Within each group the site's order is kept.
+        assertEquals(listOf("b", "d", "a", "c"), accounts.tokensFirst(Platform.X).map { it.siteId })
+        assertEquals(listOf("a", "b", "c", "d"), accounts.tokensFirst(Platform.TIKTOK).map { it.siteId })
+    }
+
+    @Test
     fun skipsMalformedCardsAndUnusableLinks() {
         val accounts = Deck.merge(
             emptyList(),

@@ -14,8 +14,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** One deck batch: the whole saved list, the accounts it brought or completed on the asked platform, and why it may be the last for now. */
-class DeckBatch(val accounts: List<Account>, val added: List<Account>, val quotaReached: Boolean, val exhausted: Boolean)
+/**
+ * One deck batch: the whole saved list, the accounts it brought on the asked platform, the held ones it brought a
+ * card token for, and why it may be the last for now.
+ */
+class DeckBatch(
+    val accounts: List<Account>,
+    val added: List<Account>,
+    val tokened: List<Account>,
+    val quotaReached: Boolean,
+    val exhausted: Boolean,
+)
 
 /**
  * Keeps the account list in app storage. The site hands it out card by card (`/api/deck`): a batch is asked for
@@ -69,9 +78,11 @@ class AccountRepository(context: Context) {
         val accounts = Deck.merge(before, platform, page.cards)
         write(accounts)
         val heldBefore = before.filter { platform in it.profiles }.mapTo(HashSet()) { it.siteId }
+        val tokenedBefore = before.filter { platform in it.cardTokens }.mapTo(HashSet()) { it.siteId }
         val added = accounts.filter { platform in it.profiles && it.siteId !in heldBefore }
+        val tokened = accounts.filter { platform in it.cardTokens && it.siteId in heldBefore && it.siteId !in tokenedBefore }
         // The site sends nothing more once the asked category is done, until it lists someone new.
-        val exhausted = added.isEmpty() && !page.quotaReached
+        val exhausted = added.isEmpty() && tokened.isEmpty() && !page.quotaReached
         prefs.edit {
             for ((platform, byCategory) in page.totals) {
                 byCategory.forEach { (key, total) -> putInt(totalKey(platform, key), total) }
@@ -79,12 +90,13 @@ class AccountRepository(context: Context) {
             if (page.quotaReached) putString(KEY_QUOTA_DAY, today()) else remove(KEY_QUOTA_DAY)
             if (exhausted) putString(exhaustedKey(platform, category), today()) else remove(exhaustedKey(platform, category))
         }
-        DeckBatch(accounts, added, page.quotaReached, exhausted)
+        DeckBatch(accounts, added, tokened, page.quotaReached, exhausted)
     }
 
     /**
      * Mirrors the site's page: `have` lists what the app already holds on [platform] so the server skips it,
-     * and `marks` the profiles already blocked.
+     * and `marks` the profiles already blocked. Accounts held without a card token stay out of `have`, so the
+     * server sends their card again with the token their block report needs.
      */
     private fun deckRequest(platform: Platform, category: SiteCategory?, accounts: List<Account>): String = buildJsonObject {
         put("net", platform.id)
@@ -92,7 +104,7 @@ class AccountRepository(context: Context) {
         put("n", DECK_BATCH)
         putJsonArray("marks") { marks(accounts).forEach(::add) }
         putJsonArray("have") {
-            accounts.filter { platform in it.profiles }.flatMap { it.ids }.distinct().forEach(::add)
+            accounts.filter { platform in it.cardTokens }.flatMap { it.ids }.distinct().forEach(::add)
         }
     }.toString()
 

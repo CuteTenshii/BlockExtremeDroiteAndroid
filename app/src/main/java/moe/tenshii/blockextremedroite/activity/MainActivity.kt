@@ -280,10 +280,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Asks for one batch when fewer profiles than a batch are left to block, like the site's page does before running dry. */
+    /**
+     * Asks for one batch when fewer profiles than a batch are left to block with a card token, like the site's page
+     * does before running dry; a batch also brings tokens for profiles held without one.
+     */
     private fun topUp() {
         val platform = settings.platform
-        val pending = selectedAccounts().count { !progress.status(it.profiles.getValue(platform)).isDone }
+        val pending = selectedAccounts().count { platform in it.cardTokens && !progress.status(it.profiles.getValue(platform)).isDone }
         if (pending < AccountRepository.DECK_BATCH && repository.canFetch(platform, settings.deckCategory)) {
             refreshList(manual = false)
         }
