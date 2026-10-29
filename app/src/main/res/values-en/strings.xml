@@ -22,11 +22,6 @@
     <string name="platform_youtube_note">YouTube has no block: the app hides the user from your channel, which removes their comments.</string>
     <string name="list_loading">Loading the list…</string>
     <string name="list_load_failed">Couldn\'t download the list. Check your connection: the app will try again on its own.</string>
-    <plurals name="list_refresh_added">
-        <item quantity="one">%d new profile added to the list</item>
-        <item quantity="other">%d new profiles added to the list</item>
-    </plurals>
-    <string name="list_refresh_nothing">List up to date: nothing new.</string>
     <string name="list_refresh_failed">Couldn\'t fetch the list. The app keeps the saved version.</string>
     <string name="list_quota">Daily limit reached: the site will send the rest of the list tomorrow.</string>
     <string name="list_needs_verification">The site asks for an anti-bot check before sending more. It will open when you start blocking.</string>

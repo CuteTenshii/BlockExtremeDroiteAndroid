@@ -307,7 +307,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Asks the deck for one batch on the selected platform. A [manual] one opens the anti-bot check when the
-     * site asks for it and always reports its outcome.
+     * site asks for it and reports a failure.
      */
     private fun refreshList(manual: Boolean) {
         if (refreshing) return
@@ -333,13 +333,6 @@ class MainActivity : AppCompatActivity() {
                 result.onSuccess {
                     listLoadFailed = false
                     needsVerification = false
-                    when {
-                        it.added.isNotEmpty() -> snackbar(
-                            resources.getQuantityString(R.plurals.list_refresh_added, it.added.size, it.added.size),
-                        )
-                        it.quotaReached -> if (manual) snackbar(getString(R.string.list_quota))
-                        else -> if (manual) snackbar(getString(R.string.list_refresh_nothing))
-                    }
                 }.onFailure {
                     if (it is SessionRequiredException) {
                         needsVerification = true
