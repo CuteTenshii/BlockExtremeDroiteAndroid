@@ -11,7 +11,9 @@ enum class BlockStatus {
     FAILED;
 
     /** Failed accounts stay in the queue: retrying is safe because already-blocked profiles are detected. */
-    val isDone: Boolean get() = this == BLOCKED || this == ALREADY_BLOCKED || this == UNAVAILABLE
+    val isDone: Boolean get() = isBlocked || this == UNAVAILABLE
+
+    val isBlocked: Boolean get() = this == BLOCKED || this == ALREADY_BLOCKED
 }
 
 /** Keyed on [Profile.identity], so a profile listed under two records is only processed once. */
@@ -67,26 +69,26 @@ class SettingsStore(context: Context) {
             putInt(KEY_CAP, value.sessionCap ?: NO_LIMIT)
         }
 
-    /** Stored as exclusions so categories added to the list later start out selected. */
-    var excludedCategories: Set<String>
-        get() = prefs.getStringSet(KEY_EXCLUDED, emptySet()).orEmpty().toSet()
-        set(value) = prefs.edit { putStringSet(KEY_EXCLUDED, value) }
+    /** Stored as exclusions so every category starts out selected. */
+    var excludedCategories: Set<SiteCategory>
+        get() = prefs.getStringSet(KEY_EXCLUDED, emptySet()).orEmpty().mapNotNull(SiteCategory::fromKey).toSet()
+        set(value) = prefs.edit { putStringSet(KEY_EXCLUDED, value.map { it.key }.toSet()) }
+
+    /** The single category to ask the site's deck for, or null when several are selected. */
+    val deckCategory: SiteCategory?
+        get() = (SiteCategory.entries - excludedCategories).singleOrNull()
 
     var platform: Platform
         get() = prefs.getString(KEY_PLATFORM, null)?.let(Platform::fromId) ?: Platform.X
         set(value) = prefs.edit { putString(KEY_PLATFORM, value.id) }
 
-    /** The accounts listed on [platform], less the excluded sources and categories. */
+    /** The accounts listed on [platform], less the excluded categories; uncategorised ones only count while none is excluded, like on the site. */
     fun select(accounts: List<Account>, platform: Platform = this.platform): List<Account> {
-        val sources = excludedSources
-        val categories = excludedCategories
-        return accounts.filter { platform in it.profiles && it.source !in sources && it.category !in categories }
+        val excluded = excludedCategories
+        return accounts.filter { account ->
+            platform in account.profiles && account.siteCategory.let { if (it == null) excluded.isEmpty() else it !in excluded }
+        }
     }
-
-    var excludedSources: Set<AccountSource>
-        get() = prefs.getStringSet(KEY_EXCLUDED_SOURCES, emptySet()).orEmpty()
-            .mapNotNull { name -> AccountSource.entries.firstOrNull { it.name == name } }.toSet()
-        set(value) = prefs.edit { putStringSet(KEY_EXCLUDED_SOURCES, value.map { it.name }.toSet()) }
 
     var listExpanded: Boolean
         get() = prefs.getBoolean(KEY_LIST_EXPANDED, true)
@@ -110,8 +112,8 @@ class SettingsStore(context: Context) {
         private const val KEY_DELAY_MIN = "delay_min"
         private const val KEY_DELAY_MAX = "delay_max"
         private const val KEY_CAP = "session_cap"
-        private const val KEY_EXCLUDED = "excluded_categories"
-        private const val KEY_EXCLUDED_SOURCES = "excluded_sources"
+        /** Not the old `excluded_categories`, which held the site's former labels. */
+        private const val KEY_EXCLUDED = "excluded_site_categories"
         private const val KEY_LIST_EXPANDED = "list_expanded"
         private const val KEY_PACING_EXPANDED = "pacing_expanded"
         private const val KEY_PLATFORM = "platform"

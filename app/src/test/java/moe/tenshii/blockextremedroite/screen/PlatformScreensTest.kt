@@ -1,7 +1,9 @@
 package moe.tenshii.blockextremedroite.screen
 
-import moe.tenshii.blockextremedroite.AccountDirectory
-import moe.tenshii.blockextremedroite.DirectorySources
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import moe.tenshii.blockextremedroite.Account
+import moe.tenshii.blockextremedroite.Deck
 import moe.tenshii.blockextremedroite.Platform
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -118,13 +120,15 @@ class PlatformScreensTest {
 
     @Test
     fun picksTheScreenForEachPlatform() {
-        val account = AccountDirectory.build(
-            DirectorySources(
-                accountsScript = """const accounts = [{"name": "A", "handle": "alpha"}];""",
-                socialsScript = """const socials = {"alpha": {"facebook": "https://www.facebook.com/alpha.page", "youtube": "https://www.youtube.com/channel/UCsDXZB1DYLUT9j-UhaJf1vA"}};""",
-                directoryJson = """{"entries": []}""",
-            ),
-        ).single()
+        val links = mapOf(
+            Platform.X to "https://x.com/alpha",
+            Platform.FACEBOOK to "https://www.facebook.com/alpha.page",
+            Platform.YOUTUBE to "https://www.youtube.com/channel/UCsDXZB1DYLUT9j-UhaJf1vA",
+        )
+        val account = links.entries.fold(emptyList<Account>()) { accounts, (platform, link) ->
+            val card = Json.decodeFromString<JsonElement>("""{"id": "alpha", "name": "A", "aliases": ["alpha"], "links": {"${platform.id}": "$link"}}""")
+            Deck.merge(accounts, platform, listOf(card))
+        }.single()
         for ((platform, profile) in account.profiles) {
             val screen = BlockScreen.of(platform, profile, emptyList(), height, null)
             val expected = when (platform) {

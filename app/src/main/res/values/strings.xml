@@ -22,20 +22,16 @@
     <string name="platform_title">Réseau</string>
     <string name="platform_youtube_note">YouTube n’a pas de blocage\u00A0: l’appli masque l’utilisateur sur ta chaîne, ce qui retire ses commentaires.</string>
     <string name="list_loading">Chargement de la liste…</string>
-    <string name="list_load_failed">Impossible de télécharger la liste. Vérifie ta connexion puis touche Mettre à jour.</string>
-    <plurals name="list_updated">
-        <item quantity="one">%1$d compte · mis à jour le %2$s</item>
-        <item quantity="many">%1$d comptes · mis à jour le %2$s</item>
-        <item quantity="other">%1$d comptes · mis à jour le %2$s</item>
+    <string name="list_load_failed">Impossible de télécharger la liste. Vérifie ta connexion\u00A0: l’appli réessaiera toute seule.</string>
+    <plurals name="list_refresh_added">
+        <item quantity="one">%d nouveau profil ajouté à la liste</item>
+        <item quantity="many">%d nouveaux profils ajoutés à la liste</item>
+        <item quantity="other">%d nouveaux profils ajoutés à la liste</item>
     </plurals>
-    <string name="list_refresh">Mettre à jour</string>
-    <string name="list_refreshing">Mise à jour…</string>
-    <plurals name="list_refresh_done">
-        <item quantity="one">Liste à jour\u00A0: %d compte</item>
-        <item quantity="many">Liste à jour\u00A0: %d comptes</item>
-        <item quantity="other">Liste à jour\u00A0: %d comptes</item>
-    </plurals>
+    <string name="list_refresh_nothing">Liste à jour\u00A0: rien de nouveau.</string>
     <string name="list_refresh_failed">Impossible de récupérer la liste. L’appli garde la version enregistrée.</string>
+    <string name="list_quota">Limite du jour atteinte\u00A0: le site enverra la suite de la liste demain.</string>
+    <string name="list_needs_verification">Le site demande une vérification anti-robot avant d’envoyer la suite. Elle s’ouvrira quand tu lanceras le blocage.</string>
     <string name="source_credit">Source\u00A0: onbloquelextremedroite.fun</string>
 
     <plurals name="collective_total">
@@ -43,12 +39,13 @@
         <item quantity="many">%s blocages déclarés ensemble</item>
         <item quantity="other">%s blocages déclarés ensemble</item>
     </plurals>
-    <string name="sources_title">Sources</string>
-    <string name="source_curated">Vérifiés par l’équipe</string>
-    <string name="source_community">Proposés par la communauté</string>
     <string name="categories_title">Catégories</string>
     <string name="category_chip">%1$s · %2$d</string>
-    <string name="no_category">Choisis au moins une source et une catégorie.</string>
+    <string name="no_category">Choisis au moins une catégorie.</string>
+    <string name="category_politics">Politiques</string>
+    <string name="category_parties">Partis</string>
+    <string name="category_media">Médias</string>
+    <string name="category_influencers">Influenceurs</string>
 
     <string name="pacing_title">Rythme</string>
     <string name="pacing_no_pause">Pause entre deux blocages\u00A0: aucune</string>
@@ -153,4 +150,12 @@
     <string name="close">Fermer</string>
     <string name="section_expanded">Développé</string>
     <string name="section_collapsed">Réduit</string>
+
+    <string name="verify_title">Vérification anti-robot</string>
+    <string name="verify_body">Le site envoie les profils par petits lots, au fil des blocages, et demande cette vérification au plus une fois par semaine.</string>
+    <string name="verify_running">Vérification en cours…</string>
+    <string name="verify_interactive">Coche la case ci-dessous pour continuer.</string>
+    <string name="verify_failed">La vérification n’a pas abouti. Vérifie ta connexion, puis réessaie.</string>
+    <string name="verify_retry">Réessayer</string>
+
 </resources>

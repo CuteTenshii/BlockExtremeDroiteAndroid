@@ -29,6 +29,7 @@ import moe.tenshii.blockextremedroite.R
 import moe.tenshii.blockextremedroite.RunMonitor
 import moe.tenshii.blockextremedroite.RunState
 import moe.tenshii.blockextremedroite.SettingsStore
+import moe.tenshii.blockextremedroite.SiteCategory
 import moe.tenshii.blockextremedroite.databinding.ActivityAccountsBinding
 import java.text.NumberFormat
 import java.util.Locale
@@ -59,7 +60,7 @@ class AccountsActivity : AppCompatActivity() {
 
     private var accounts: List<Account>? = null
     private var loadFailed = false
-    private var category: String? = null
+    private var category: SiteCategory? = null
     private var minFollowers = 0L
     private var minBlocks = 0L
     private var sort = Sort.SITE
@@ -84,7 +85,7 @@ class AccountsActivity : AppCompatActivity() {
         platform = settings.platform
         adapter = AccountAdapter(PortraitLoader.get(this), platform, ::openProfile)
         savedInstanceState?.let { state ->
-            category = state.getString(KEY_CATEGORY)
+            category = SiteCategory.fromKey(state.getString(KEY_CATEGORY))
             minFollowers = state.getLong(KEY_MIN_FOLLOWERS)
             minBlocks = state.getLong(KEY_MIN_BLOCKS)
             sort = Sort.entries.getOrElse(state.getInt(KEY_SORT)) { Sort.SITE }
@@ -95,7 +96,7 @@ class AccountsActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.filterCategory.setOnMenu {
             listOf(getString(R.string.filter_category_all) to { category = null }) +
-                categories().map { name -> name to { category = name } }
+                categories().map { option -> getString(option.label) to { category = option } }
         }
         binding.filterFollowers.setOnMenu {
             listOf(getString(R.string.filter_any) to { minFollowers = 0 }) + FOLLOWER_STEPS.map { step ->
@@ -128,7 +129,7 @@ class AccountsActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(KEY_CATEGORY, category)
+        outState.putString(KEY_CATEGORY, category?.key)
         outState.putLong(KEY_MIN_FOLLOWERS, minFollowers)
         outState.putLong(KEY_MIN_BLOCKS, minBlocks)
         outState.putInt(KEY_SORT, sort.ordinal)
@@ -170,12 +171,12 @@ class AccountsActivity : AppCompatActivity() {
         setOnCloseIconClickListener { performClick() }
     }
 
-    private fun categories(): List<String> =
-        settings.select(accounts.orEmpty(), platform).groupingBy { it.category }.eachCount().entries
+    private fun categories(): List<SiteCategory> =
+        settings.select(accounts.orEmpty(), platform).mapNotNull { it.siteCategory }.groupingBy { it }.eachCount().entries
             .sortedByDescending { it.value }.map { it.key }
 
     private fun renderFilters() {
-        binding.filterCategory.text = category ?: getString(R.string.filter_category)
+        binding.filterCategory.text = getString(category?.label ?: R.string.filter_category)
         binding.filterCategory.isChecked = category != null
         binding.filterFollowers.text =
             if (minFollowers > 0) getString(R.string.filter_followers_min, compactNumbers.format(minFollowers)) else getString(R.string.filter_followers)
@@ -202,7 +203,7 @@ class AccountsActivity : AppCompatActivity() {
             AccountRow(account, profile, progress.status(profile), snapshot?.count(account, platform))
         }
         val shown = selected.filter { row ->
-            (category == null || row.account.category == category) &&
+            (category == null || row.account.siteCategory == category) &&
                 (row.profile.followers ?: 0) >= minFollowers &&
                 (row.blockCount ?: 0) >= minBlocks
         }
@@ -219,7 +220,7 @@ class AccountsActivity : AppCompatActivity() {
         binding.summary.text = getString(
             R.string.summary,
             selected.count { !it.status.isDone },
-            selected.count { it.status == BlockStatus.BLOCKED || it.status == BlockStatus.ALREADY_BLOCKED },
+            selected.count { it.status.isBlocked },
             selected.count { it.status == BlockStatus.UNAVAILABLE },
         )
     }

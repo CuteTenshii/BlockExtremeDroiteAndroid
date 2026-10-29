@@ -100,6 +100,6 @@ data class Profile(
     val url: String,
     /** The name the app shows with an `@`; null when the link only gives a page name or a numeric id. */
     val handle: String?,
-    /** From the site's dated, partial `followers.js` survey; null when it has no figure. */
+    /** From the site's dated, partial follower survey; null when it has no figure. */
     val followers: Long? = null,
 )

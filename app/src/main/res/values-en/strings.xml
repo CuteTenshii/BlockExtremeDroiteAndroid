@@ -21,30 +21,28 @@
     <string name="platform_title">Network</string>
     <string name="platform_youtube_note">YouTube has no block: the app hides the user from your channel, which removes their comments.</string>
     <string name="list_loading">Loading the list…</string>
-    <string name="list_load_failed">Couldn\'t download the list. Check your connection, then tap Update.</string>
-    <plurals name="list_updated">
-        <item quantity="one">%1$d account · updated %2$s</item>
-        <item quantity="other">%1$d accounts · updated %2$s</item>
+    <string name="list_load_failed">Couldn\'t download the list. Check your connection: the app will try again on its own.</string>
+    <plurals name="list_refresh_added">
+        <item quantity="one">%d new profile added to the list</item>
+        <item quantity="other">%d new profiles added to the list</item>
     </plurals>
-    <string name="list_refresh">Update</string>
-    <string name="list_refreshing">Updating…</string>
-    <plurals name="list_refresh_done">
-        <item quantity="one">List updated: %d account</item>
-        <item quantity="other">List updated: %d accounts</item>
-    </plurals>
+    <string name="list_refresh_nothing">List up to date: nothing new.</string>
     <string name="list_refresh_failed">Couldn\'t fetch the list. The app keeps the saved version.</string>
+    <string name="list_quota">Daily limit reached: the site will send the rest of the list tomorrow.</string>
+    <string name="list_needs_verification">The site asks for an anti-bot check before sending more. It will open when you start blocking.</string>
     <string name="source_credit">Source: onbloquelextremedroite.fun</string>
 
     <plurals name="collective_total">
         <item quantity="one">%s block reported together</item>
         <item quantity="other">%s blocks reported together</item>
     </plurals>
-    <string name="sources_title">Sources</string>
-    <string name="source_curated">Verified by the team</string>
-    <string name="source_community">Submitted by the community</string>
     <string name="categories_title">Categories</string>
     <string name="category_chip">%1$s · %2$d</string>
-    <string name="no_category">Pick at least one source and one category.</string>
+    <string name="no_category">Pick at least one category.</string>
+    <string name="category_politics">Politicians</string>
+    <string name="category_parties">Parties</string>
+    <string name="category_media">Media</string>
+    <string name="category_influencers">Influencers</string>
 
     <string name="pacing_title">Pace</string>
     <string name="pacing_no_pause">Pause between blocks: none</string>
@@ -143,4 +141,12 @@
     <string name="close">Close</string>
     <string name="section_expanded">Expanded</string>
     <string name="section_collapsed">Collapsed</string>
+
+    <string name="verify_title">Anti-bot check</string>
+    <string name="verify_body">The site sends profiles in small batches as you block, and asks for this check at most once a week.</string>
+    <string name="verify_running">Checking…</string>
+    <string name="verify_interactive">Tick the box below to continue.</string>
+    <string name="verify_failed">The check didn\'t go through. Check your connection, then try again.</string>
+    <string name="verify_retry">Try again</string>
+
 </resources>

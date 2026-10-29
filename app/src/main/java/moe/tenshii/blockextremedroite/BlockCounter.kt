@@ -8,12 +8,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.Executors
 
 /** [counts] is keyed like the site's counter, `platform:siteId`. */
 data class CounterSnapshot(val total: Long, private val counts: Map<String, Long>) {
-    fun count(account: Account, platform: Platform): Long? = counts[counterKey(account.siteId, platform)]
+    /** Sums the person's records like the site does, null when the counter knows none of them. */
+    fun count(account: Account, platform: Platform): Long? =
+        account.ids.mapNotNull { counts[counterKey(it, platform)] }.takeIf { it.isNotEmpty() }?.sum()
 }
 
 private fun counterKey(siteId: String, platform: Platform) = "${platform.id}:$siteId"
@@ -22,11 +23,12 @@ private fun counterKey(siteId: String, platform: Platform) = "${platform.id}:$si
 fun pluralQuantity(count: Long): Int = count.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
 /**
- * The site's collective block counter (`/api/counts`). Reports are queued on disk first so a block
- * made offline is still counted later; the server dedupes on profile + device id.
+ * The site's collective block counter (`/api/counts`). Reports are queued on disk first so a block made
+ * offline, or while the site session has expired, is still counted later; the server dedupes on profile + device id.
  */
 class BlockCounter private constructor(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val session = SiteSession(context)
     private val executor = Executors.newSingleThreadExecutor()
 
     init {
@@ -38,12 +40,6 @@ class BlockCounter private constructor(context: Context) {
 
     @Serializable
     private data class ReportResponse(val ok: Boolean, val count: Long, val changed: Boolean)
-
-    /** Random v4 UUID, the only identifier the site receives, matching what its own page sends. */
-    private val deviceId: String
-        get() = prefs.getString(KEY_DEVICE, null) ?: UUID.randomUUID().toString().also { id ->
-            prefs.edit { putString(KEY_DEVICE, id) }
-        }
 
     /** The last snapshot fetched by any screen, so another one can show counts without fetching again. */
     @Volatile
@@ -89,19 +85,25 @@ class BlockCounter private constructor(context: Context) {
     }
 
     private fun send(key: String): Boolean {
+        val headers = session.headers()
         val body = buildJsonObject {
             put("account_id", key)
-            put("device_id", deviceId)
+            put("device_id", session.deviceId)
             put("blocked", true)
         }
-        return json.decodeFromString<ReportResponse>(Http.postJson(COUNTS_URL, body.toString())).ok
+        return try {
+            json.decodeFromString<ReportResponse>(Http.postJson(COUNTS_URL, body.toString(), headers)).ok
+        } catch (e: HttpException) {
+            if (e.code == HTTP_UNAUTHORIZED) session.clear()
+            throw e
+        }
     }
 
     companion object {
         private const val COUNTS_URL = "${AccountRepository.SITE}/api/counts"
         private const val PREFS = "counter"
-        private const val KEY_DEVICE = "device_id"
         private const val KEY_QUEUE = "queue"
+        private const val HTTP_UNAUTHORIZED = 401
         private val json = Json { ignoreUnknownKeys = true }
 
         @Volatile

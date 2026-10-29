@@ -15,6 +15,8 @@ import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.net.toUri
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import moe.tenshii.blockextremedroite.activity.MainActivity
 import moe.tenshii.blockextremedroite.screen.BlockScreen
 import moe.tenshii.blockextremedroite.screen.ScreenNode
@@ -23,13 +25,23 @@ import kotlin.random.Random
 /**
  * Drives a platform's official app: opens each profile through a deep link, then taps its menu, Bloquer and the
  * confirmation. The app's accessibility events trigger each check (debounced, as Compose sends them in bursts);
- * a short poll covers screens that change without emitting any.
+ * a short poll covers screens that change without emitting any. When the queue runs low, the next batch of the
+ * site's deck is fetched, so a run goes on as long as the site hands out profiles.
  */
 class BlockService : AccessibilityService() {
 
     private enum class Step { OPEN, PROFILE, MENU, CONFIRM, VERIFY, PAUSE }
 
-    private class Session(val platform: Platform, val queue: ArrayDeque<Account>, val pacing: Pacing) {
+    private class Session(
+        val platform: Platform,
+        val queue: ArrayDeque<Account>,
+        val pacing: Pacing,
+        val category: SiteCategory?,
+        var canRefill: Boolean,
+    ) {
+        var refilling = false
+        /** Site ids already queued in this run, so a batch can't queue someone twice. */
+        val queued: MutableSet<String> = queue.mapTo(HashSet()) { it.siteId }
         var step = Step.OPEN
         var stepStartedAt = 0L
         var deadline = 0L
@@ -47,6 +59,9 @@ class BlockService : AccessibilityService() {
     private var overlay: RunOverlay? = null
     private lateinit var progress: ProgressStore
     private lateinit var counter: BlockCounter
+    private lateinit var repository: AccountRepository
+    private lateinit var settings: SettingsStore
+    private val fetcher: ExecutorService = Executors.newSingleThreadExecutor()
 
     private val tick = object : Runnable {
         override fun run() {
@@ -62,6 +77,8 @@ class BlockService : AccessibilityService() {
         instance = this
         progress = ProgressStore(this)
         counter = BlockCounter.get(this)
+        repository = AccountRepository(this)
+        settings = SettingsStore(this)
         overlay = RunOverlay(this) { stop(StopReason.USER) }
         RunMonitor.update { it.copy(serviceConnected = true) }
     }
@@ -82,14 +99,17 @@ class BlockService : AccessibilityService() {
 
     override fun onDestroy() {
         disconnect()
+        fetcher.shutdownNow()
         super.onDestroy()
     }
 
-    /** Accounts without a profile on [platform] are skipped. */
+    /** Accounts without a profile on [platform] are skipped; an empty queue still starts when the deck can fill it. */
     fun start(platform: Platform, accounts: List<Account>, pacing: Pacing) {
         val queue = accounts.filter { platform in it.profiles }
-        if (session != null || queue.isEmpty()) return
-        session = Session(platform, ArrayDeque(queue), pacing)
+        val category = settings.deckCategory
+        val canRefill = repository.canFetch(platform, category)
+        if (session != null || (queue.isEmpty() && !canRefill)) return
+        session = Session(platform, ArrayDeque(queue), pacing, category, canRefill)
         overlay?.show(platform)
         RunMonitor.update {
             it.copy(
@@ -138,7 +158,9 @@ class BlockService : AccessibilityService() {
 
     private fun openNext(session: Session, now: Long) {
         if (session.capReached) return stop(StopReason.CAP_REACHED)
-        val account = session.queue.removeFirstOrNull() ?: return stop(StopReason.FINISHED)
+        refill(session)
+        val account = session.queue.removeFirstOrNull()
+            ?: return if (session.refilling) Unit else stop(StopReason.FINISHED)
         val platform = session.platform
         // A fresh task guarantees the previous profile is gone before the next one is inspected.
         val intent = Intent(Intent.ACTION_VIEW, platform.appLink(account.profiles.getValue(platform)).toUri())
@@ -232,7 +254,7 @@ class BlockService : AccessibilityService() {
         when {
             session.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES -> stop(StopReason.TOO_MANY_FAILURES)
             session.capReached -> stop(StopReason.CAP_REACHED)
-            session.queue.isEmpty() -> stop(StopReason.FINISHED)
+            session.queue.isEmpty() && !session.refilling && !session.canRefill -> stop(StopReason.FINISHED)
             else -> {
                 val delayMs = if (status == BlockStatus.BLOCKED) {
                     1000L * Random.nextInt(session.pacing.minDelaySeconds, session.pacing.maxDelaySeconds + 1)
@@ -242,6 +264,30 @@ class BlockService : AccessibilityService() {
                 session.step = Step.PAUSE
                 session.resumeAt = now + delayMs
                 overlay?.showPause(session.blocked, session.pacing.sessionCap)
+            }
+        }
+    }
+
+    /** Asks the deck for its next batch once few profiles are left, like the site's page; the run waits for it if needed. */
+    private fun refill(session: Session) {
+        if (session.refilling || !session.canRefill || session.queue.size > REFILL_THRESHOLD) return
+        session.refilling = true
+        fetcher.execute {
+            val result = runCatching { repository.fetchBatch(session.platform, session.category) }
+            handler.post {
+                if (this.session !== session) return@post
+                session.refilling = false
+                result.onSuccess { batch ->
+                    val fresh = settings.select(batch.added, session.platform).filter { account ->
+                        !progress.status(account.profiles.getValue(session.platform)).isDone && session.queued.add(account.siteId)
+                    }
+                    session.queue += fresh
+                    // A batch with nothing for this run (only unselected categories) must not chain into the next one.
+                    if (batch.quotaReached || batch.exhausted || fresh.isEmpty()) session.canRefill = false
+                }.onFailure {
+                    // A failed batch would fail again on the next profile; the run ends with what it holds.
+                    session.canRefill = false
+                }
             }
         }
     }
@@ -320,5 +366,7 @@ class BlockService : AccessibilityService() {
         private const val TAP_DURATION_MS = 60L
         private const val MAX_CLICK_ANCESTORS = 6
         private const val MAX_CONSECUTIVE_FAILURES = 3
+        /** The site's page asks for more when this many profiles are left. */
+        private const val REFILL_THRESHOLD = 3
     }
 }

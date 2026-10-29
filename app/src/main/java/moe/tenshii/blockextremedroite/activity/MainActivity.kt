@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.text.format.DateUtils
 import android.transition.TransitionManager
 import android.view.View
 import androidx.annotation.RequiresApi
@@ -22,7 +21,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import moe.tenshii.blockextremedroite.Account
 import moe.tenshii.blockextremedroite.AccountRepository
-import moe.tenshii.blockextremedroite.AccountSource
 import moe.tenshii.blockextremedroite.BlockCounter
 import moe.tenshii.blockextremedroite.BlockService
 import moe.tenshii.blockextremedroite.BlockStatus
@@ -36,7 +34,10 @@ import moe.tenshii.blockextremedroite.R
 import moe.tenshii.blockextremedroite.Release
 import moe.tenshii.blockextremedroite.RunMonitor
 import moe.tenshii.blockextremedroite.RunState
+import moe.tenshii.blockextremedroite.SessionRequiredException
 import moe.tenshii.blockextremedroite.SettingsStore
+import moe.tenshii.blockextremedroite.SiteCategory
+import moe.tenshii.blockextremedroite.SiteSession
 import moe.tenshii.blockextremedroite.StopReason
 import moe.tenshii.blockextremedroite.Updater
 import moe.tenshii.blockextremedroite.databinding.ActivityMainBinding
@@ -55,12 +56,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settings: SettingsStore
     private lateinit var counter: BlockCounter
     private lateinit var updater: Updater
+    private lateinit var session: SiteSession
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val updateExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     private var accounts: List<Account> = emptyList()
     private var listLoadFailed = false
     private var refreshing = false
+    /** Set when the site wants a new anti-bot check before it sends more of the list. */
+    private var needsVerification = false
+    /** Set when "Lancer le blocage" opened the anti-bot check, so the run starts once it passes. */
+    private var startAfterVerification = false
     private var counts: CounterSnapshot? = null
     private var update: Release? = null
     private var checkingUpdate = false
@@ -75,7 +81,8 @@ class MainActivity : AppCompatActivity() {
         if (wasRunning && !state.running) {
             // Reports are sent in the background, so give them a moment before reading the counter back.
             binding.root.postDelayed(::loadCounts, COUNTS_RELOAD_DELAY_MS)
-            buildFilterChips()
+            // The run may have added the deck's next batches to the saved list.
+            reloadSaved()
         }
         wasRunning = state.running
         render()
@@ -97,12 +104,22 @@ class MainActivity : AppCompatActivity() {
         settings = SettingsStore(this)
         counter = BlockCounter.get(this)
         updater = Updater(this)
+        session = SiteSession(this)
+        supportFragmentManager.setFragmentResultListener(VerifyDialog.REQUEST_KEY, this) { _, _ ->
+            needsVerification = false
+            counter.flush()
+            if (startAfterVerification) {
+                startAfterVerification = false
+                toggleRun()
+            } else {
+                refreshList(manual = true)
+            }
+        }
 
         binding.viewAccounts.setOnClickListener { startActivity(Intent(this, AccountsActivity::class.java)) }
         binding.enableService.setOnClickListener { showDisclosure() }
         binding.installApp.setOnClickListener { openStorePage(settings.platform) }
         binding.openRepository.setOnClickListener { openRepository() }
-        binding.refreshList.setOnClickListener { refreshList() }
         binding.startStop.setOnClickListener { toggleRun() }
         binding.resetProgress.setOnClickListener { confirmReset() }
         binding.updateInstall.setOnClickListener { startUpdate() }
@@ -189,20 +206,51 @@ class MainActivity : AppCompatActivity() {
         binding.capLabel.text = pacing.sessionCap?.let { getString(R.string.pacing_cap, it) } ?: getString(R.string.pacing_no_limit)
     }
 
+    /** Shows the saved list, then tops it up from the site's deck. Only an empty list opens the anti-bot check unasked. */
     private fun loadList() {
         refreshing = true
         executor.execute {
-            val result = runCatching { repository.load() }
+            val saved = repository.load()
             runOnUiThread {
                 if (isDestroyed) return@runOnUiThread
                 refreshing = false
-                result.onSuccess { accounts = it }
-                listLoadFailed = result.isFailure
+                accounts = saved
+                buildFilterChips()
+                render()
+                when {
+                    session.current != null -> topUp()
+                    saved.isEmpty() -> refreshList(manual = true)
+                    else -> {
+                        needsVerification = true
+                        render()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun reloadSaved() {
+        executor.execute {
+            val saved = repository.load()
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                accounts = saved
                 buildFilterChips()
                 render()
             }
         }
     }
+
+    /** Asks for one batch when fewer profiles than a batch are left to block, like the site's page does before running dry. */
+    private fun topUp() {
+        val platform = settings.platform
+        val pending = selectedAccounts().count { !progress.status(it.profiles.getValue(platform)).isDone }
+        if (pending < AccountRepository.DECK_BATCH && repository.canFetch(platform, settings.deckCategory)) {
+            refreshList(manual = false)
+        }
+    }
+
+    private fun canFetchMore(): Boolean = repository.canFetch(settings.platform, settings.deckCategory)
 
     private fun loadCounts() {
         executor.execute {
@@ -215,40 +263,63 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshList() {
+    /**
+     * Asks the deck for one batch on the selected platform. A [manual] one opens the anti-bot check when the
+     * site asks for it and always reports its outcome.
+     */
+    private fun refreshList(manual: Boolean) {
         if (refreshing) return
+        // Without a session the refresh can only fail, and it would first wait behind the counter's requests.
+        if (session.current == null) {
+            needsVerification = true
+            if (manual) VerifyDialog.show(supportFragmentManager)
+            render()
+            return
+        }
         refreshing = true
         render()
+        val platform = settings.platform
+        val category = settings.deckCategory
         executor.execute {
-            val result = runCatching { repository.refresh() }
+            val result = runCatching { repository.fetchBatch(platform, category) }
+            val saved = repository.load()
             runOnUiThread {
                 if (isDestroyed) return@runOnUiThread
                 refreshing = false
+                accounts = saved
+                buildFilterChips()
                 result.onSuccess {
-                    accounts = it
                     listLoadFailed = false
-                    buildFilterChips()
-                    snackbar(resources.getQuantityString(R.plurals.list_refresh_done, it.size, it.size))
+                    needsVerification = false
+                    when {
+                        it.added.isNotEmpty() -> snackbar(
+                            resources.getQuantityString(R.plurals.list_refresh_added, it.added.size, it.added.size),
+                        )
+                        it.quotaReached -> if (manual) snackbar(getString(R.string.list_quota))
+                        else -> if (manual) snackbar(getString(R.string.list_refresh_nothing))
+                    }
                 }.onFailure {
-                    snackbar(getString(R.string.list_refresh_failed))
+                    if (it is SessionRequiredException) {
+                        needsVerification = true
+                        if (manual) VerifyDialog.show(supportFragmentManager)
+                    } else {
+                        listLoadFailed = saved.isEmpty()
+                        if (manual) snackbar(getString(R.string.list_refresh_failed))
+                    }
                 }
                 render()
             }
         }
     }
 
-    /**
-     * Each platform counts what is left to block there in the current selection. Source and category counts
-     * follow the selected platform, and category counts the selected sources, so the chips are built in that order.
-     */
+    /** Each platform counts what is left to block there in the current selection; category counts follow the selected platform. */
     private fun buildFilterChips() {
         val platform = settings.platform
         binding.platforms.removeAllViews()
         for (option in Platform.entries) {
-            val pending = settings.select(accounts, option).count { !progress.status(it.profiles.getValue(option)).isDone }
             val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.platforms, false).root.apply {
                 id = View.generateViewId()
-                text = getString(R.string.category_chip, option.label, pending)
+                text = getString(R.string.category_chip, option.label, leftToBlock(option, null))
                 isChecked = option == platform
                 setOnCheckedChangeListener { _, checked ->
                     if (!checked || settings.platform == option) return@setOnCheckedChangeListener
@@ -257,44 +328,27 @@ class MainActivity : AppCompatActivity() {
                     RunMonitor.update { it.copy(lastStop = null) }
                     buildFilterChips()
                     render()
+                    topUp()
                 }
             }
             binding.platforms.addView(chip)
         }
 
-        val onPlatform = accounts.filter { platform in it.profiles }
-        val excludedSources = settings.excludedSources
-        val sourceCounts = onPlatform.groupingBy { it.source }.eachCount()
-        binding.sources.removeAllViews()
-        for (source in AccountSource.entries) {
-            val count = sourceCounts[source] ?: continue
-            val label = getString(if (source == AccountSource.CURATED) R.string.source_curated else R.string.source_community)
-            val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.sources, false).root.apply {
-                text = getString(R.string.category_chip, label, count)
-                isChecked = source !in excludedSources
-                setOnCheckedChangeListener { _, checked ->
-                    settings.excludedSources =
-                        if (checked) settings.excludedSources - source else settings.excludedSources + source
-                    buildFilterChips()
-                    render()
-                }
-            }
-            binding.sources.addView(chip)
-        }
-
         val excluded = settings.excludedCategories
-        val counts = onPlatform.filter { it.source !in excludedSources }
-            .groupingBy { it.category }.eachCount().entries.sortedByDescending { it.value }
         binding.categories.removeAllViews()
-        for ((category, count) in counts) {
+        for (category in SiteCategory.entries) {
+            val count = leftToBlock(platform, category)
+            // An excluded category stays visible even when empty, or it could never be selected again.
+            if (count == 0 && category !in excluded) continue
             val chip = ItemCategoryChipBinding.inflate(layoutInflater, binding.categories, false).root.apply {
-                text = getString(R.string.category_chip, category, count)
+                text = getString(R.string.category_chip, getString(category.label), count)
                 isChecked = category !in excluded
                 setOnCheckedChangeListener { _, checked ->
                     settings.excludedCategories =
                         if (checked) settings.excludedCategories - category else settings.excludedCategories + category
                     buildFilterChips()
                     render()
+                    topUp()
                 }
             }
             binding.categories.addView(chip)
@@ -302,6 +356,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectedAccounts(): List<Account> = settings.select(accounts)
+
+    /**
+     * What is left to block on [platform] in [category] (all categories when null), counted like the site's page:
+     * its total less the profiles blocked there, or only the profiles held once it has said nothing more is coming.
+     * Never less than the profiles held and still to block, as lists saved before the deck can hold more than its total.
+     */
+    private fun leftToBlock(platform: Platform, category: SiteCategory?): Int {
+        val listed = accounts.filter { account ->
+            platform in account.profiles && (category == null || account.siteCategory == category)
+        }
+        val statuses = listed.map { progress.status(it.profiles.getValue(platform)) }
+        val held = statuses.count { !it.isDone }
+        val total = repository.total(platform, category)
+        if (total == null || repository.isExhausted(platform, category)) return held
+        return maxOf(total - statuses.count { it.isBlocked }, held)
+    }
 
     private fun render() {
         val state = RunMonitor.state
@@ -326,17 +396,10 @@ class MainActivity : AppCompatActivity() {
         binding.serviceStatus.setText(if (state.serviceConnected) R.string.service_on else R.string.service_off)
         binding.enableService.isVisible = !state.serviceConnected
 
-        binding.listInfo.text = when {
-            listLoadFailed -> getString(R.string.list_load_failed)
-            accounts.isEmpty() -> getString(R.string.list_loading)
-            else -> resources.getQuantityString(
-                R.plurals.list_updated, accounts.size, accounts.size,
-                DateUtils.formatDateTime(this, repository.lastUpdated, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
-            )
-        }
-        binding.refreshList.isEnabled = !refreshing && !state.running
-        binding.refreshList.setText(if (refreshing) R.string.list_refreshing else R.string.list_refresh)
-        for (group in listOf(binding.platforms, binding.sources, binding.categories)) {
+        val listInfo = listInfoText()
+        binding.listInfo.text = listInfo
+        binding.listInfo.isVisible = listInfo.isNotEmpty()
+        for (group in listOf(binding.platforms, binding.categories)) {
             for (i in 0 until group.childCount) group.getChildAt(i).isEnabled = !state.running
         }
         binding.delaySlider.isEnabled = !state.running
@@ -346,16 +409,27 @@ class MainActivity : AppCompatActivity() {
         val statuses = selectedAccounts().map { progress.status(it.profiles.getValue(platform)) }
         binding.viewAccounts.isEnabled = accounts.isNotEmpty()
         val pending = statuses.count { !it.isDone }
-        val blocked = statuses.count { it == BlockStatus.BLOCKED || it == BlockStatus.ALREADY_BLOCKED }
+        val blocked = statuses.count { it.isBlocked }
         val unavailable = statuses.count { it == BlockStatus.UNAVAILABLE }
         binding.summary.text = getString(R.string.summary, pending, blocked, unavailable)
 
         binding.startStop.setText(if (state.running) R.string.stop else R.string.start)
-        binding.startStop.isEnabled = state.running || (appInstalled && state.serviceConnected && pending > 0)
+        // Without a session the deck's state is unknown; starting opens the check that settles it.
+        val canFetch = canFetchMore() || session.current == null
+        binding.startStop.isEnabled = state.running || (appInstalled && state.serviceConnected && (pending > 0 || canFetch))
 
-        val runText = runStatusText(state, statuses.isEmpty(), pending)
+        val runText = runStatusText(state, statuses.isEmpty(), pending, canFetch)
         binding.runStatus.text = runText
         binding.runStatus.visibility = if (runText == null) View.GONE else View.VISIBLE
+    }
+
+    private fun listInfoText(): String {
+        val lines = mutableListOf<String>()
+        if (listLoadFailed) lines += getString(R.string.list_load_failed)
+        else if (accounts.isEmpty() && refreshing) lines += getString(R.string.list_loading)
+        if (needsVerification) lines += getString(R.string.list_needs_verification)
+        else if (repository.quotaReachedToday) lines += getString(R.string.list_quota)
+        return lines.joinToString("\n")
     }
 
     private fun renderUpdate() {
@@ -376,7 +450,7 @@ class MainActivity : AppCompatActivity() {
         binding.checkUpdate.isEnabled = !checkingUpdate && progress == null
     }
 
-    private fun runStatusText(state: RunState, noSelection: Boolean, pending: Int): String? = when {
+    private fun runStatusText(state: RunState, noSelection: Boolean, pending: Int, canFetch: Boolean): String? = when {
         state.running && state.current == null -> getString(R.string.run_starting, state.platform.label)
         state.running && state.cap == null ->
             resources.getQuantityString(R.plurals.run_running_unlimited, state.blocked, state.current, state.blocked)
@@ -391,9 +465,8 @@ class MainActivity : AppCompatActivity() {
             StopReason.SERVICE_DISCONNECTED -> getString(R.string.stop_service)
         }
         accounts.isEmpty() -> null
-        (settings.excludedSources.isNotEmpty() || settings.excludedCategories.isNotEmpty()) && noSelection ->
-            getString(R.string.no_category)
-        pending == 0 -> getString(R.string.nothing_to_block)
+        settings.excludedCategories.isNotEmpty() && noSelection && !canFetch -> getString(R.string.no_category)
+        pending == 0 && !canFetch -> getString(R.string.nothing_to_block)
         else -> null
     }
 
@@ -407,9 +480,15 @@ class MainActivity : AppCompatActivity() {
             showDisclosure()
             return
         }
+        // A run fetches the deck's next batches as it goes, which takes a session; the check opens here, when one is needed.
+        if (session.current == null) {
+            startAfterVerification = true
+            VerifyDialog.show(supportFragmentManager)
+            return
+        }
         val platform = settings.platform
         val queue = selectedAccounts().filter { !progress.status(it.profiles.getValue(platform)).isDone }
-        if (queue.isEmpty()) {
+        if (queue.isEmpty() && !canFetchMore()) {
             snackbar(getString(R.string.nothing_to_block))
             return
         }
