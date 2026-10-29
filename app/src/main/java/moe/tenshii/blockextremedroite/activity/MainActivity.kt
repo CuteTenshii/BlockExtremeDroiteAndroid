@@ -8,7 +8,10 @@ import android.os.Bundle
 import android.provider.Settings
 import android.transition.TransitionManager
 import android.view.View
+import androidx.activity.OnBackPressedCallback
+import androidx.annotation.IdRes
 import androidx.annotation.RequiresApi
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -60,7 +63,20 @@ class MainActivity : AppCompatActivity() {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val updateExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
+    private lateinit var accountsTab: AccountsTab
+    @IdRes private var tab = R.id.tabBlock
+    /** Leaving the Comptes or Réglages tab with Back returns to Bloquer before leaving the app. */
+    private val backToBlockTab = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            binding.bottomNav.selectedItemId = R.id.tabBlock
+        }
+    }
+
     private var accounts: List<Account> = emptyList()
+        set(value) {
+            field = value
+            accountsTab.accounts = value
+        }
     private var listLoadFailed = false
     private var refreshing = false
     /** Set when the site wants a new anti-bot check before it sends more of the list. */
@@ -95,7 +111,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            view.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
+            // The bottom bar pads itself above the navigation bar.
+            view.updatePadding(left = bars.left, top = bars.top, right = bars.right)
             insets
         }
 
@@ -105,6 +122,15 @@ class MainActivity : AppCompatActivity() {
         counter = BlockCounter.get(this)
         updater = Updater(this)
         session = SiteSession(this)
+        accountsTab = AccountsTab(this, binding.accountsTab, savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, backToBlockTab)
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            showTab(item.itemId)
+            true
+        }
+        val savedTab = savedInstanceState?.getInt(KEY_TAB) ?: R.id.tabBlock
+        binding.bottomNav.selectedItemId = savedTab
+        showTab(savedTab)
         supportFragmentManager.setFragmentResultListener(VerifyDialog.REQUEST_KEY, this) { _, _ ->
             needsVerification = false
             counter.flush()
@@ -116,7 +142,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.viewAccounts.setOnClickListener { startActivity(Intent(this, AccountsActivity::class.java)) }
         binding.enableService.setOnClickListener { showDisclosure() }
         binding.installApp.setOnClickListener { openStorePage(settings.platform) }
         binding.openRepository.setOnClickListener { openRepository() }
@@ -127,13 +152,27 @@ class MainActivity : AppCompatActivity() {
         binding.checkUpdate.setOnClickListener { checkForUpdate(manual = true) }
         binding.version.text = getString(R.string.version, BuildConfig.VERSION_NAME)
         bindSection(binding.listHeader, binding.listChevron, binding.listBody, settings::listExpanded)
-        bindSection(binding.pacingHeader, binding.pacingChevron, binding.pacingBody, settings::pacingExpanded)
         setUpPacing()
         loadList()
         loadCounts()
         counter.flush()
         update = updater.available
         checkForUpdate(manual = false)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_TAB, tab)
+        accountsTab.saveState(outState)
+    }
+
+    private fun showTab(@IdRes id: Int) {
+        tab = id
+        binding.homeTab.isVisible = id == R.id.tabBlock
+        binding.accountsTab.root.isVisible = id == R.id.tabAccounts
+        binding.settingsTab.isVisible = id == R.id.tabSettings
+        backToBlockTab.isEnabled = id != R.id.tabBlock
+        if (id == R.id.tabAccounts) accountsTab.render()
     }
 
     override fun onStart() {
@@ -407,7 +446,6 @@ class MainActivity : AppCompatActivity() {
         binding.resetProgress.isEnabled = !state.running
 
         val statuses = selectedAccounts().map { progress.status(it.profiles.getValue(platform)) }
-        binding.viewAccounts.isEnabled = accounts.isNotEmpty()
         val pending = statuses.count { !it.isDone }
         val blocked = statuses.count { it.isBlocked }
         val unavailable = statuses.count { it == BlockStatus.UNAVAILABLE }
@@ -421,6 +459,9 @@ class MainActivity : AppCompatActivity() {
         val runText = runStatusText(state, statuses.isEmpty(), pending, canFetch)
         binding.runStatus.text = runText
         binding.runStatus.visibility = if (runText == null) View.GONE else View.VISIBLE
+
+        // The list can hold thousands of rows, so it is only rebuilt while its tab is shown.
+        if (tab == R.id.tabAccounts) accountsTab.render()
     }
 
     private fun listInfoText(): String {
@@ -506,7 +547,15 @@ class MainActivity : AppCompatActivity() {
                 checkingUpdate = false
                 result.onSuccess {
                     update = it
-                    if (manual && it == null) snackbar(getString(R.string.update_none))
+                    when {
+                        !manual -> Unit
+                        it == null -> snackbar(getString(R.string.update_none))
+                        // The update card lives at the top of Bloquer, out of sight from Réglages where the check is made.
+                        tab != R.id.tabBlock -> snackbar(getString(R.string.update_title, it.version), R.string.update_show) {
+                            binding.bottomNav.selectedItemId = R.id.tabBlock
+                            binding.homeTab.smoothScrollTo(0, 0)
+                        }
+                    }
                 }.onFailure {
                     if (manual) snackbar(getString(R.string.update_check_failed))
                 }
@@ -630,12 +679,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun snackbar(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+    private fun snackbar(message: String, @StringRes action: Int? = null, onAction: () -> Unit = {}) {
+        val bar = Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).setAnchorView(binding.bottomNav)
+        if (action != null) bar.setAction(action) { onAction() }
+        bar.show()
     }
 
     private companion object {
         const val COUNTS_RELOAD_DELAY_MS = 3_000L
+        const val KEY_TAB = "tab"
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
 }

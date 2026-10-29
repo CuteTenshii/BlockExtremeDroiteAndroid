@@ -34,11 +34,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".activity.AccountsActivity"
-            android:exported="false"
-            android:parentActivityName=".activity.MainActivity" />
-
         <service
             android:name=".BlockService"
             android:exported="false"

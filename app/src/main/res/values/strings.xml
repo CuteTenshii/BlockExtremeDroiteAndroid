@@ -91,8 +91,6 @@
     <string name="reset_body">Tous les comptes repassent à bloquer sur %s. Ceux que tu as déjà bloqués le restent\u00A0: l’appli les passera sans rien toucher.</string>
     <string name="reset_confirm">Réinitialiser</string>
 
-    <string name="accounts_open">Voir les comptes</string>
-    <string name="back">Retour</string>
     <string name="accounts_title">Comptes</string>
     <string name="accounts_hint">Touche un compte pour ouvrir son profil dans %s.</string>
     <string name="accounts_credits">Photos et abonnés repris du site, qui cite ses sources\u00A0: Assemblée nationale, Wikimedia Commons, Le Podium 2027 (CC BY 4.0) et Saper Vedere. Les abonnés sont des relevés partiels et datés.</string>
@@ -144,6 +142,7 @@
     <string name="update_permission_title">Autoriser l’installation</string>
     <string name="update_permission_body">Android demande ton accord pour que l’appli installe sa propre mise à jour. Autorise-la sur la page qui s’ouvre, puis reviens ici\u00A0: la mise à jour continuera.</string>
     <string name="update_check">Rechercher une mise à jour</string>
+    <string name="update_show">Voir</string>
     <string name="update_none">Tu as la dernière version.</string>
     <string name="update_check_failed">Impossible de vérifier les mises à jour. Vérifie ta connexion.</string>
     <string name="version">Version %s</string>
@@ -158,4 +157,10 @@
     <string name="verify_failed">La vérification n’a pas abouti. Vérifie ta connexion, puis réessaie.</string>
     <string name="verify_retry">Réessayer</string>
 
+    <string name="tab_block">Bloquer</string>
+    <string name="tab_accounts">Comptes</string>
+    <string name="tab_settings">Réglages</string>
+    <string name="progress_title">Progression</string>
+    <string name="progress_hint">L’appli retient qui tu as déjà bloqué sur chaque réseau pour ne pas y revenir.</string>
+    <string name="about_title">À propos</string>
 </resources>

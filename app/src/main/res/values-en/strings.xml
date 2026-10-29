@@ -84,8 +84,6 @@
     <string name="reset_body">Every account goes back to \"to block\" on %s. Accounts you already blocked stay blocked: the app will skip them without touching anything.</string>
     <string name="reset_confirm">Reset</string>
 
-    <string name="accounts_open">View accounts</string>
-    <string name="back">Back</string>
     <string name="accounts_title">Accounts</string>
     <string name="accounts_hint">Tap an account to open its profile in %s.</string>
     <string name="accounts_credits">Photos and follower counts come from the site, which credits its sources: Assemblée nationale, Wikimedia Commons, Le Podium 2027 (CC BY 4.0) and Saper Vedere. Follower counts are partial, dated surveys.</string>
@@ -135,6 +133,7 @@
     <string name="update_permission_title">Allow installing</string>
     <string name="update_permission_body">Android needs your permission for the app to install its own update. Allow it on the page that opens, then come back here and the update will carry on.</string>
     <string name="update_check">Check for updates</string>
+    <string name="update_show">View</string>
     <string name="update_none">You have the latest version.</string>
     <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
     <string name="version">Version %s</string>
@@ -149,4 +148,10 @@
     <string name="verify_failed">The check didn\'t go through. Check your connection, then try again.</string>
     <string name="verify_retry">Try again</string>
 
+    <string name="tab_block">Block</string>
+    <string name="tab_accounts">Accounts</string>
+    <string name="tab_settings">Settings</string>
+    <string name="progress_title">Progress</string>
+    <string name="progress_hint">The app remembers who you already blocked on each network so it doesn\'t go back to them.</string>
+    <string name="about_title">About</string>
 </resources>

@@ -94,10 +94,6 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_LIST_EXPANDED, true)
         set(value) = prefs.edit { putBoolean(KEY_LIST_EXPANDED, value) }
 
-    var pacingExpanded: Boolean
-        get() = prefs.getBoolean(KEY_PACING_EXPANDED, true)
-        set(value) = prefs.edit { putBoolean(KEY_PACING_EXPANDED, value) }
-
     companion object {
         private const val DEFAULT_CAP = 30
         val DEFAULT_PACING = Pacing(minDelaySeconds = 6, maxDelaySeconds = 12, sessionCap = DEFAULT_CAP)
@@ -115,7 +111,6 @@ class SettingsStore(context: Context) {
         /** Not the old `excluded_categories`, which held the site's former labels. */
         private const val KEY_EXCLUDED = "excluded_site_categories"
         private const val KEY_LIST_EXPANDED = "list_expanded"
-        private const val KEY_PACING_EXPANDED = "pacing_expanded"
         private const val KEY_PLATFORM = "platform"
     }
 }
