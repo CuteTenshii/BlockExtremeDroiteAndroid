@@ -62,7 +62,7 @@ class DeckTest {
                 """
                     [
                       {"id": "Alpha", "name": " A ", "aliases": ["alpha", "pa1"], "links": {"x": "https://twitter.com/Alpha/", "instagram": "https://instagram.com/a"},
-                       "category": "RN", "reason": "r", "verified": true, "follower": {"count": 1200, "date": "2026-10-28"}, "cat": "pol"},
+                       "category": "RN", "reason": "r", "verified": true, "follower": {"count": 1200, "date": "2026-10-28"}, "cat": "pol", "t": "e645826a"},
                       {"id": "u1", "name": "", "aliases": ["u1"], "links": {"x": "https://x.com/delta"}, "category": ""}
                     ]
                 """.trimIndent(),
@@ -78,6 +78,8 @@ class DeckTest {
         assertEquals(listOf(Platform.X), accounts[0].profiles.keys.toList())
         assertEquals("x:/alpha", accounts[0].profiles.getValue(Platform.X).identity)
         assertEquals(1200L, accounts[0].profiles.getValue(Platform.X).followers)
+        assertEquals(mapOf(Platform.X to "e645826a"), accounts[0].cardTokens)
+        assertTrue(accounts[1].cardTokens.isEmpty())
     }
 
     @Test
@@ -85,18 +87,20 @@ class DeckTest {
         val fromX = Deck.merge(
             emptyList(),
             Platform.X,
-            cards("""[{"id": "alpha", "name": "A", "aliases": ["alpha", "pa1"], "links": {"x": "https://x.com/alpha"}}]"""),
+            cards("""[{"id": "alpha", "name": "A", "aliases": ["alpha", "pa1"], "links": {"x": "https://x.com/alpha"}, "t": "tok-x"}]"""),
         )
         val merged = Deck.merge(
             fromX,
             Platform.TIKTOK,
-            cards("""[{"id": "pa1", "name": "A on TikTok", "aliases": ["pa1", "tt9"], "links": {"tiktok": "https://www.tiktok.com/@alpha"}}]"""),
+            cards("""[{"id": "pa1", "name": "A on TikTok", "aliases": ["pa1", "tt9"], "links": {"tiktok": "https://www.tiktok.com/@alpha"}, "t": "tok-t"}]"""),
         )
         val account = merged.single()
         assertEquals("alpha", account.siteId)
         assertEquals("A", account.name)
         assertEquals(listOf("alpha", "pa1", "tt9"), account.ids)
         assertEquals(listOf(Platform.X, Platform.TIKTOK), account.profiles.keys.toList())
+        // Each platform's report needs the token its own card came with.
+        assertEquals(mapOf(Platform.X to "tok-x", Platform.TIKTOK to "tok-t"), account.cardTokens)
     }
 
     @Test

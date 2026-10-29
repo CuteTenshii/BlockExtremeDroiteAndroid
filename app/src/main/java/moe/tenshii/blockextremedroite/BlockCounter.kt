@@ -54,8 +54,12 @@ class BlockCounter private constructor(context: Context) {
     }
 
     fun report(account: Account, platform: Platform) {
+        val key = counterKey(account.siteId, platform)
         synchronized(prefs) {
-            prefs.edit { putStringSet(KEY_QUEUE, pending() + counterKey(account.siteId, platform)) }
+            prefs.edit {
+                putStringSet(KEY_QUEUE, pending() + key)
+                account.cardTokens[platform]?.let { putString(tokenKey(key), it) }
+            }
         }
         flush()
     }
@@ -66,10 +70,17 @@ class BlockCounter private constructor(context: Context) {
             for (key in synchronized(prefs) { pending() }) {
                 val sent = runCatching { send(key) }.getOrDefault(false)
                 if (!sent) break
-                synchronized(prefs) { prefs.edit { putStringSet(KEY_QUEUE, pending() - key) } }
+                synchronized(prefs) {
+                    prefs.edit {
+                        putStringSet(KEY_QUEUE, pending() - key)
+                        remove(tokenKey(key))
+                    }
+                }
             }
         }
     }
+
+    private fun tokenKey(key: String) = "$KEY_TOKEN_PREFIX$key"
 
     private fun pending(): Set<String> = prefs.getStringSet(KEY_QUEUE, emptySet()).orEmpty().toSet()
 
@@ -86,10 +97,13 @@ class BlockCounter private constructor(context: Context) {
 
     private fun send(key: String): Boolean {
         val headers = session.headers()
+        val token = prefs.getString(tokenKey(key), null)
         val body = buildJsonObject {
             put("account_id", key)
             put("device_id", session.deviceId)
             put("blocked", true)
+            // Lists saved before the deck have no tokens; the site's page also leaves the field out when it has none.
+            if (token != null) put("card_token", token)
         }
         return try {
             json.decodeFromString<ReportResponse>(Http.postJson(COUNTS_URL, body.toString(), headers)).ok
@@ -103,6 +117,7 @@ class BlockCounter private constructor(context: Context) {
         private const val COUNTS_URL = "${AccountRepository.SITE}/api/counts"
         private const val PREFS = "counter"
         private const val KEY_QUEUE = "queue"
+        private const val KEY_TOKEN_PREFIX = "token:"
         private const val HTTP_UNAUTHORIZED = 401
         private val json = Json { ignoreUnknownKeys = true }
 

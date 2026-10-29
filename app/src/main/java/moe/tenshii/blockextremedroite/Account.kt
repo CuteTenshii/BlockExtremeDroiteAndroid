@@ -43,6 +43,8 @@ data class Account(
     val cat: String? = null,
     /** Only platforms with a usable profile link are present, so an account always has at least one. */
     val profiles: Map<Platform, Profile>,
+    /** The token each platform's card came with, which the site's counter takes with a block report. */
+    val cardTokens: Map<Platform, String> = emptyMap(),
 ) {
     /** Every record key the site knows this person by, as its deck's `have` and its counter use them. */
     val ids: List<String> get() = (listOf(siteId) + aliases).distinct()
@@ -81,6 +83,7 @@ private data class DeckCard(
     val reason: String = "",
     val cat: String? = null,
     val follower: FollowerCount? = null,
+    val t: String? = null,
 )
 
 @InternalSerializationApi @Serializable
@@ -124,6 +127,7 @@ object Deck {
                     aliases = (existing.aliases + aliases).distinct() - existing.siteId,
                     cat = existing.cat ?: card.cat,
                     profiles = existing.profiles + (platform to profile),
+                    cardTokens = card.t?.let { existing.cardTokens + (platform to it) } ?: existing.cardTokens,
                 )
                 aliases.forEach { byAlias[it] = index }
             } else {
@@ -135,6 +139,7 @@ object Deck {
                     reason = card.reason.trim(),
                     cat = card.cat,
                     profiles = mapOf(platform to profile),
+                    cardTokens = card.t?.let { mapOf(platform to it) }.orEmpty(),
                 )
                 aliases.forEach { byAlias[it] = merged.lastIndex }
             }
